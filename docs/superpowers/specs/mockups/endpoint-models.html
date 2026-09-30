@@ -1,0 +1,234 @@
+<style>
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .flowA { stroke-dasharray: 3 9; animation: flow 1.2s linear infinite; }
+  .layouts { display:grid; gap:1.75rem; max-width:1250px; }
+  .layouts .card-image { aspect-ratio:auto; display:block; padding:0; background:#0a0e1c; }
+  .tag { display:inline-block; font-size:.7rem; padding:.1rem .45rem; border-radius:999px; background:var(--bg-tertiary); color:var(--text-secondary); margin-right:.3rem; }
+
+  .obs { position:relative; height:560px; background:#0a0e1c; color:#c9d3f5; font-family:ui-monospace,'JetBrains Mono',Consolas,monospace; font-size:11px; display:flex; flex-direction:column; overflow:hidden; }
+  .obs * { box-sizing:border-box; }
+  .obs .top { height:38px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid #1a2446; background:#0c1226; flex-shrink:0; }
+  .obs .logo { color:#e6ecff; font-weight:700; } .obs .logo b { color:#b86bff; }
+  .obs .crumbs { color:#6d7ba8; } .obs .crumbs span { color:#e6ecff; }
+  .obs .kbd { border:1px solid #2a3a6e; border-radius:4px; padding:0 5px; color:#8a97c4; font-size:10px; }
+  .obs .search { flex:0 0 240px; margin-left:auto; height:24px; border:1px solid #22305c; border-radius:6px; background:#0a0f22; display:flex; align-items:center; justify-content:space-between; padding:0 8px; color:#56638f; }
+  .obs .body { flex:1; display:flex; min-height:0; }
+  .obs .side { width:215px; border-right:1px solid #1a2446; background:#0c1226; padding:12px; display:flex; flex-direction:column; gap:12px; overflow:hidden; }
+  .obs .insp { width:300px; border-left:1px solid #1a2446; background:#0c1226; padding:14px; overflow:hidden; display:flex; flex-direction:column; gap:11px; }
+  .obs .h { color:#56638f; font-size:9.5px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:5px; }
+  .obs .row { display:flex; align-items:center; gap:7px; padding:3px 4px; border-radius:4px; white-space:nowrap; }
+  .obs .row.sel { background:#1a1440; color:#f3e8ff; }
+  .obs .dot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+  .obs .cnt { margin-left:auto; color:#56638f; }
+  .obs .seg { display:flex; border:1px solid #22305c; border-radius:5px; overflow:hidden; }
+  .obs .seg div { flex:1; text-align:center; padding:3px 0; color:#6d7ba8; }
+  .obs .seg div.on { background:#1f2b5a; color:#e6ecff; }
+  .obs .tabs2 { display:flex; gap:10px; border-bottom:1px solid #1a2446; }
+  .obs .tabs2 div { padding:4px 0; color:#6d7ba8; } .obs .tabs2 div.on { color:#e6ecff; box-shadow:inset 0 -2px #b86bff; }
+  .obs .canvas { flex:1; position:relative; min-width:0; }
+  .obs .canvas svg { position:absolute; inset:0; width:100%; height:100%; }
+  .obs .title { color:#f3e8ff; font-size:13px; font-weight:700; }
+  .obs .sub { color:#6d7ba8; }
+  .obs .warn { color:#ffb454; }
+  .obs .g { color:#39d0a8 } .obs .p { color:#5b8cff } .obs .d { color:#ff6b8b } .obs .t { color:#7fd4ff } .obs .k { color:#c792ea }
+  .obs .tree div { padding:1.5px 0; white-space:nowrap; }
+  .obs .tree .i1 { padding-left:12px } .obs .tree .i2 { padding-left:24px }
+  .obs .xref { color:#ffb454; border-bottom:1px dotted #ffb454; }
+  .obs .verb { font-weight:700; width:32px; display:inline-block; }
+</style>
+
+<svg style="position:absolute;width:0;height:0" aria-hidden="true"><defs>
+  <pattern id="dots2" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#1e2a4a"/></pattern>
+  <linearGradient id="eg2" x1="0" x2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#b86bff"/></linearGradient>
+  <linearGradient id="eg3" x1="1" x2="0"><stop offset="0" stop-color="#39d0a8"/><stop offset="1" stop-color="#5b8cff"/></linearGradient>
+  <filter id="glow2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+</defs></svg>
+
+<h2>Endpoint depth: browsing endpoints and the models they carry</h2>
+<p class="subtitle">Command Center layout, zoomed to <strong>Endpoint</strong> depth with <strong>GET /api/orders/{id}</strong> selected. Both versions show the same data; the difference is <em>where the models appear</em>.</p>
+
+<div class="layouts">
+
+<!-- ========== A: MODELS IN INSPECTOR ========== -->
+<div class="card" data-choice="models-inspector" onclick="toggleSelect(this)">
+  <div class="card-image"><div class="obs">
+    <div class="top"><div class="logo">dep<b>enk</b></div>
+      <div class="crumbs">System / orders / Orders.Client / <span>GET /api/orders/{id}</span></div>
+      <div class="search">Search… <span class="kbd">Ctrl K</span></div></div>
+    <div class="body">
+      <div class="side">
+        <div class="seg"><div>Repo</div><div>Project</div><div class="on">Endpoint</div></div>
+        <div class="tabs2"><div class="on">Endpoints</div><div>Models</div><div>Packages</div></div>
+        <div>
+          <div class="h">orders · OrdersController</div>
+          <div class="row sel"><span class="verb g">GET</span>/orders/{id}<span class="cnt">3</span></div>
+          <div class="row"><span class="verb g">GET</span>/orders<span class="cnt">1</span></div>
+          <div class="row"><span class="verb p">POST</span>/orders<span class="cnt">2</span></div>
+          <div class="row"><span class="verb p">PUT</span>/orders/{id}/status<span class="cnt">1</span></div>
+          <div class="row"><span class="verb d">DEL</span>/orders/{id}<span class="cnt" style="color:#ff6b8b">0</span></div>
+          <div class="h" style="margin-top:8px">orders · RefundsController</div>
+          <div class="row"><span class="verb p">POST</span>/refunds<span class="cnt">1</span></div>
+          <div class="row"><span class="verb g">GET</span>/refunds/{id}<span class="cnt">0</span></div>
+          <div class="h" style="margin-top:8px">customers · CustomersCtrl</div>
+          <div class="row"><span class="verb g">GET</span>/customers/{id}<span class="cnt">2</span></div>
+        </div>
+      </div>
+      <div class="canvas"><svg viewBox="0 0 560 360" preserveAspectRatio="xMidYMid meet" font-family="ui-monospace,Consolas,monospace" font-size="9.5">
+        <rect x="-300" y="-300" width="1200" height="1000" fill="url(#dots2)"/>
+        <!-- column labels -->
+        <g fill="#3d4a78" font-size="8" letter-spacing="1"><text x="20" y="28">CALL SITES</text><text x="215" y="28">CLIENT METHOD</text><text x="400" y="28">ENDPOINT</text></g>
+        <!-- edges -->
+        <g fill="none" stroke="url(#eg2)" stroke-width="1.6" filter="url(#glow2)">
+          <path class="flowA" d="M170 80 C195 80,195 180,215 180"/>
+          <path class="flowA" d="M170 180 C195 180,195 180,215 180"/>
+          <path class="flowA" d="M170 280 C195 280,195 180,215 180"/>
+          <path class="flowA" d="M365 180 C380 180,385 180,400 180"/>
+        </g>
+        <!-- call sites -->
+        <g>
+          <rect x="20" y="58" width="150" height="44" rx="7" fill="#111833" stroke="#2a3a6e"/><rect x="20" y="58" width="3" height="44" fill="#5b8cff"/>
+          <text x="30" y="75" fill="#e6ecff">OrdersProxy.Get</text><text x="30" y="90" fill="#6d7ba8" font-size="8">Gateway.Api · L42</text>
+          <rect x="20" y="158" width="150" height="44" rx="7" fill="#111833" stroke="#2a3a6e"/><rect x="20" y="158" width="3" height="44" fill="#39d0a8"/>
+          <text x="30" y="175" fill="#e6ecff">InvoiceBuilder.Build</text><text x="30" y="190" fill="#6d7ba8" font-size="8">Billing.Api · L118</text>
+          <circle cx="162" cy="166" r="3.5" fill="#ffb454"/>
+          <rect x="20" y="258" width="150" height="44" rx="7" fill="#111833" stroke="#2a3a6e" stroke-dasharray="3 2"/><rect x="20" y="258" width="3" height="44" fill="#39d0a8"/>
+          <text x="30" y="275" fill="#e6ecff">ReconcileJob.Run</text><text x="30" y="290" fill="#ffb454" font-size="8">Billing.Worker · medium</text>
+        </g>
+        <!-- client method -->
+        <rect x="215" y="152" width="150" height="56" rx="7" fill="#16103a" stroke="#b86bff"/><rect x="215" y="152" width="3" height="56" fill="#b86bff"/>
+        <text x="225" y="170" fill="#f3e8ff">IOrdersClient</text><text x="225" y="184" fill="#f3e8ff" font-weight="700">.GetOrderAsync(id)</text><text x="225" y="199" fill="#9d86d9" font-size="8">Orders.Client 3.4.1</text>
+        <!-- endpoint -->
+        <rect x="400" y="152" width="145" height="56" rx="7" fill="#0f2320" stroke="#39d0a8"/><rect x="400" y="152" width="3" height="56" fill="#39d0a8"/>
+        <text x="410" y="170" fill="#39d0a8" font-weight="700">GET</text><text x="410" y="184" fill="#e6ecff">/api/orders/{id}</text><text x="410" y="199" fill="#6d7ba8" font-size="8">OrdersController.Get</text>
+      </svg></div>
+      <div class="insp">
+        <div><div style="display:flex;gap:8px;align-items:baseline"><span class="verb g" style="font-size:13px">GET</span><span class="title">/api/orders/{id}</span></div>
+          <div class="sub">OrdersController.Get · Orders.Api/Controllers/OrdersController.cs:31</div></div>
+        <div class="tabs2"><div class="on">Contract</div><div>Callers (3)</div><div>Source</div></div>
+        <div><div class="h">Request</div>
+          <div class="tree"><div><span class="k">route</span> id : <span class="t">Guid</span></div><div><span class="k">query</span> includeLines : <span class="t">bool</span> = true</div></div></div>
+        <div><div class="h">Response · 200</div>
+          <div class="tree">
+            <div>▾ <span class="t">OrderDto</span> <span class="sub">Orders.Client</span></div>
+            <div class="i1">Id : <span class="t">Guid</span></div>
+            <div class="i1">Status : <span class="t">OrderStatus</span> <span class="sub">enum(4)</span></div>
+            <div class="i1">▸ Customer : <span class="xref">CustomerRef</span> <span class="warn">↗ customers</span></div>
+            <div class="i1">▾ Lines : <span class="t">List&lt;OrderLineDto&gt;</span></div>
+            <div class="i2">Sku : <span class="t">string</span></div>
+            <div class="i2">Qty : <span class="t">int</span></div>
+            <div class="i2">UnitPrice : <span class="t">Money</span> <span class="sub">Shared.Kernel</span></div>
+            <div class="i1">CreatedAt : <span class="t">DateTimeOffset</span></div>
+          </div></div>
+        <div><div class="h">Also 404</div><div class="sub">ProblemDetails</div></div>
+        <div style="border:1px solid #3a2e10;background:#1a1508;border-radius:6px;padding:7px" class="warn">⚠ Billing.Api is on 3.2.0: OrderDto.Lines is missing in that version</div>
+      </div>
+    </div>
+  </div></div>
+  <div class="card-body">
+    <h3>A · Call chain on canvas, models in the inspector</h3>
+    <p>The canvas shows the <strong>call chain</strong>: call sites → client method → endpoint. The inspector shows the <strong>contract</strong> as an expandable type tree. Types from other repos are tagged (<span style="color:#b07a1e">↗ customers</span>) and clicking one jumps there. The <em>Models</em> tab on the left lets you browse every DTO and see which endpoints use it.</p>
+    <p style="margin-top:.4rem"><span class="tag">clean canvas</span><span class="tag">familiar tree</span></p>
+  </div>
+</div>
+
+<!-- ========== B: MODELS ON CANVAS (PAYLOAD FLOW) ========== -->
+<div class="card" data-choice="models-canvas" onclick="toggleSelect(this)">
+  <div class="card-image"><div class="obs">
+    <div class="top"><div class="logo">dep<b>enk</b></div>
+      <div class="crumbs">System / orders / Orders.Client / <span>GET /api/orders/{id}</span></div>
+      <div class="search">Search… <span class="kbd">Ctrl K</span></div></div>
+    <div class="body">
+      <div class="side">
+        <div class="seg"><div>Repo</div><div>Project</div><div class="on">Endpoint</div></div>
+        <div class="tabs2"><div>Endpoints</div><div class="on">Models</div><div>Packages</div></div>
+        <div>
+          <div class="h">Orders.Client · 9 models</div>
+          <div class="row sel"><span class="t">■</span>OrderDto<span class="cnt">4 ep</span></div>
+          <div class="row"><span class="t">■</span>OrderLineDto<span class="cnt">4 ep</span></div>
+          <div class="row"><span class="t">■</span>CreateOrderRequest<span class="cnt">1 ep</span></div>
+          <div class="row"><span class="k">◆</span>OrderStatus<span class="cnt">enum</span></div>
+          <div class="h" style="margin-top:8px">Customers.Client</div>
+          <div class="row"><span class="t">■</span>CustomerRef<span class="cnt warn">↗ 6 ep</span></div>
+          <div class="h" style="margin-top:8px">Shared.Kernel · library</div>
+          <div class="row"><span class="t">■</span>Money<span class="cnt">31 ep</span></div>
+        </div>
+      </div>
+      <div class="canvas"><svg viewBox="0 0 620 380" preserveAspectRatio="xMidYMid meet" font-family="ui-monospace,Consolas,monospace" font-size="9">
+        <rect x="-300" y="-300" width="1300" height="1000" fill="url(#dots2)"/>
+        <!-- request / response lanes -->
+        <g fill="none" stroke-width="1.6" filter="url(#glow2)">
+          <path class="flowA" stroke="url(#eg2)" d="M150 70 C230 70,230 70,300 70"/>
+          <path class="flowA" stroke="url(#eg3)" d="M300 110 C230 110,230 110,150 110"/>
+        </g>
+        <text x="225" y="62" fill="#5b8cff" text-anchor="middle" font-size="8">id: Guid, includeLines</text>
+        <text x="225" y="125" fill="#39d0a8" text-anchor="middle" font-size="8">200 OrderDto · 404</text>
+        <!-- caller -->
+        <rect x="20" y="55" width="130" height="70" rx="7" fill="#111833" stroke="#2a3a6e"/><rect x="20" y="55" width="3" height="70" fill="#39d0a8"/>
+        <text x="30" y="73" fill="#e6ecff">Billing.Api</text><text x="30" y="88" fill="#6d7ba8" font-size="8">InvoiceBuilder.Build</text><text x="30" y="103" fill="#6d7ba8" font-size="8">via IOrdersClient</text><text x="30" y="116" fill="#ffb454" font-size="8">+2 more callers</text>
+        <!-- endpoint -->
+        <rect x="300" y="55" width="150" height="70" rx="7" fill="#0f2320" stroke="#39d0a8"/><rect x="300" y="55" width="3" height="70" fill="#39d0a8"/>
+        <text x="310" y="73" fill="#39d0a8" font-weight="700">GET /api/orders/{id}</text><text x="310" y="88" fill="#6d7ba8" font-size="8">OrdersController.Get</text><text x="310" y="103" fill="#6d7ba8" font-size="8">orders · Orders.Api</text>
+        <!-- model graph -->
+        <g fill="none" stroke="#2f3f78" stroke-width="1.2">
+          <path d="M150 110 C150 170,205 170,205 185"/>
+          <path d="M290 215 C320 215,320 205,350 205"/>
+          <path d="M290 245 C320 245,320 290,350 290"/>
+          <path d="M290 230 C300 230,300 320,150 320"/>
+          <path d="M490 300 C520 300,520 260,540 245"/>
+        </g>
+        <g>
+          <!-- OrderDto -->
+          <rect x="120" y="185" width="170" height="84" rx="7" fill="#101a38" stroke="#7fd4ff"/>
+          <text x="130" y="200" fill="#7fd4ff" font-weight="700">OrderDto</text><text x="282" y="200" fill="#56638f" font-size="7.5" text-anchor="end">Orders.Client</text>
+          <line x1="120" y1="206" x2="290" y2="206" stroke="#1f2b55"/>
+          <text x="130" y="219" fill="#c9d3f5">Id           <tspan fill="#7fd4ff">Guid</tspan></text>
+          <text x="130" y="232" fill="#c9d3f5">Status       <tspan fill="#c792ea">OrderStatus</tspan></text>
+          <text x="130" y="245" fill="#c9d3f5">Customer     <tspan fill="#ffb454">CustomerRef</tspan></text>
+          <text x="130" y="258" fill="#c9d3f5">Lines        <tspan fill="#7fd4ff">List&lt;OrderLineDto&gt;</tspan></text>
+          <!-- CustomerRef (cross repo) -->
+          <rect x="350" y="180" width="140" height="50" rx="7" fill="#1a1508" stroke="#ffb454" stroke-dasharray="4 2"/>
+          <text x="360" y="195" fill="#ffb454" font-weight="700">CustomerRef ↗</text><text x="360" y="208" fill="#8a7a50" font-size="7.5">Customers.Client · customers</text>
+          <text x="360" y="222" fill="#c9d3f5">Id <tspan fill="#7fd4ff">Guid</tspan>  Name <tspan fill="#7fd4ff">string</tspan></text>
+          <!-- OrderLineDto -->
+          <rect x="350" y="262" width="140" height="62" rx="7" fill="#101a38" stroke="#2f3f78"/>
+          <text x="360" y="277" fill="#7fd4ff" font-weight="700">OrderLineDto</text>
+          <text x="360" y="291" fill="#c9d3f5">Sku       <tspan fill="#7fd4ff">string</tspan></text>
+          <text x="360" y="303" fill="#c9d3f5">Qty       <tspan fill="#7fd4ff">int</tspan></text>
+          <text x="360" y="315" fill="#c9d3f5">UnitPrice <tspan fill="#7fd4ff">Money</tspan></text>
+          <!-- Money -->
+          <rect x="540" y="225" width="70" height="36" rx="7" fill="#101a38" stroke="#2f3f78"/>
+          <text x="548" y="240" fill="#7fd4ff">Money</text><text x="548" y="253" fill="#56638f" font-size="7">Shared.Kernel</text>
+          <!-- OrderStatus -->
+          <rect x="40" y="305" width="110" height="30" rx="7" fill="#1a1030" stroke="#5a3f8a"/>
+          <text x="50" y="324" fill="#c792ea">◆ OrderStatus</text>
+        </g>
+      </svg></div>
+      <div class="insp">
+        <div><div class="title">OrderDto</div><div class="sub">Orders.Client/Models/OrderDto.cs · record</div></div>
+        <div class="tabs2"><div class="on">Used by</div><div>Fields</div><div>Versions</div></div>
+        <div><div class="h">Returned by · 4 endpoints</div>
+          <div class="row" style="padding-left:0"><span class="verb g">GET</span>/api/orders/{id}</div>
+          <div class="row" style="padding-left:0"><span class="verb g">GET</span>/api/orders</div>
+          <div class="row" style="padding-left:0"><span class="verb p">POST</span>/api/orders</div>
+          <div class="row" style="padding-left:0"><span class="verb p">PUT</span>/api/orders/{id}/status</div></div>
+        <div><div class="h">Consumed in · 3 repos</div>
+          <div class="row" style="padding-left:0"><div class="dot" style="background:#5b8cff"></div>gateway<span class="cnt">passes through</span></div>
+          <div class="row" style="padding-left:0"><div class="dot" style="background:#39d0a8"></div>billing<span class="cnt">reads 5 fields</span></div></div>
+        <div><div class="h">Depends on</div>
+          <div class="row" style="padding-left:0"><span class="xref">CustomerRef</span><span class="cnt warn">customers</span></div>
+          <div class="row" style="padding-left:0">Money<span class="cnt">Shared.Kernel</span></div></div>
+      </div>
+    </div>
+  </div></div>
+  <div class="card-body">
+    <h3>B · Payload flow, with models on the canvas</h3>
+    <p>The canvas shows <strong>request going out and response coming back</strong> as two animated lanes. Beneath them the <strong>model graph</strong> expands as linked cards, with fields listed inline and types from other repos highlighted in amber. Selecting a model shows every endpoint and repo it passes through. This version shows <em>data flowing</em> most literally, but the canvas gets busier.</p>
+    <p style="margin-top:.4rem"><span class="tag">data-flow literal</span><span class="tag">model coupling visible</span><span class="tag">busier</span></p>
+  </div>
+</div>
+
+</div>
+
+<div class="section" style="margin-top:1.5rem;max-width:1250px">
+  <p class="subtitle" style="margin:0">Both versions let you get there from either side: <strong>Endpoints</strong> tab (endpoint → models) or <strong>Models</strong> tab (model → every endpoint and repo that uses it). Everything on screen is also available through MCP.</p>
+</div>

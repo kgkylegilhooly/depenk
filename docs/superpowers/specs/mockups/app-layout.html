@@ -1,0 +1,219 @@
+<style>
+  @keyframes flow { to { stroke-dashoffset: -24; } }
+  .flowA { stroke-dasharray: 3 9; animation: flow 1.2s linear infinite; }
+  @keyframes pulse { 0%,100% { opacity:.35 } 50% { opacity:.9 } }
+  .pulse { animation: pulse 2.4s ease-in-out infinite; }
+
+  .layouts { display:grid; gap:1.75rem; max-width:1200px; }
+  .layouts .card-image { aspect-ratio:auto; display:block; padding:0; background:#0a0e1c; }
+  .tag { display:inline-block; font-size:.7rem; padding:.1rem .45rem; border-radius:999px; background:var(--bg-tertiary); color:var(--text-secondary); margin-right:.3rem; }
+
+  /* Observatory app chrome */
+  .obs { position:relative; height:520px; background:#0a0e1c; color:#c9d3f5; font-family:ui-monospace,'JetBrains Mono',Consolas,monospace; font-size:11px; display:flex; flex-direction:column; overflow:hidden; }
+  .obs * { box-sizing:border-box; }
+  .obs .top { height:38px; display:flex; align-items:center; gap:12px; padding:0 14px; border-bottom:1px solid #1a2446; background:#0c1226; flex-shrink:0; }
+  .obs .logo { color:#e6ecff; font-weight:700; letter-spacing:.5px; }
+  .obs .logo b { color:#b86bff; }
+  .obs .crumbs { color:#6d7ba8; }
+  .obs .crumbs span { color:#e6ecff; }
+  .obs .kbd { border:1px solid #2a3a6e; border-radius:4px; padding:0 5px; color:#8a97c4; font-size:10px; }
+  .obs .search { flex:0 0 260px; margin-left:auto; height:24px; border:1px solid #22305c; border-radius:6px; background:#0a0f22; display:flex; align-items:center; justify-content:space-between; padding:0 8px; color:#56638f; }
+  .obs .body { flex:1; display:flex; min-height:0; }
+  .obs .side { width:200px; border-right:1px solid #1a2446; background:#0c1226; padding:12px; display:flex; flex-direction:column; gap:14px; overflow:hidden; }
+  .obs .insp { width:270px; border-left:1px solid #1a2446; background:#0c1226; padding:14px; overflow:hidden; display:flex; flex-direction:column; gap:12px; }
+  .obs .h { color:#56638f; font-size:9.5px; letter-spacing:1.2px; text-transform:uppercase; margin-bottom:6px; }
+  .obs .row { display:flex; align-items:center; gap:7px; padding:3px 4px; border-radius:4px; }
+  .obs .row.sel { background:#1a1440; color:#f3e8ff; }
+  .obs .dot { width:7px; height:7px; border-radius:2px; flex-shrink:0; }
+  .obs .cnt { margin-left:auto; color:#56638f; }
+  .obs .chk { width:10px; height:10px; border:1px solid #3a4a80; border-radius:2px; flex-shrink:0; }
+  .obs .chk.on { background:#5b8cff; border-color:#5b8cff; }
+  .obs .seg { display:flex; border:1px solid #22305c; border-radius:5px; overflow:hidden; }
+  .obs .seg div { flex:1; text-align:center; padding:3px 0; color:#6d7ba8; }
+  .obs .seg div.on { background:#1f2b5a; color:#e6ecff; }
+  .obs .canvas { flex:1; position:relative; min-width:0; }
+  .obs .canvas svg { position:absolute; inset:0; width:100%; height:100%; }
+  .obs .title { color:#f3e8ff; font-size:15px; font-weight:700; }
+  .obs .sub { color:#6d7ba8; }
+  .obs .pill { display:inline-block; padding:1px 6px; border-radius:999px; font-size:9.5px; }
+  .obs .warn { color:#ffb454; }
+  .obs .ep { display:flex; gap:6px; padding:3px 0; border-bottom:1px dashed #18213f; }
+  .obs .verb { width:34px; font-weight:700; }
+  .obs .g { color:#39d0a8 } .obs .p { color:#5b8cff } .obs .d { color:#ff6b8b }
+  .obs .glass { position:absolute; background:rgba(14,20,44,.78); backdrop-filter:blur(10px); border:1px solid #26356a; border-radius:10px; box-shadow:0 10px 40px rgba(0,0,0,.45); }
+  .obs .drawer { height:170px; border-top:1px solid #1a2446; background:#0c1226; display:flex; flex-direction:column; flex-shrink:0; }
+  .obs .tabs { display:flex; gap:2px; padding:0 10px; border-bottom:1px solid #1a2446; }
+  .obs .tabs div { padding:7px 10px; color:#6d7ba8; }
+  .obs .tabs div.on { color:#e6ecff; box-shadow: inset 0 -2px #b86bff; }
+  .obs table { width:100%; border-collapse:collapse; }
+  .obs td, .obs th { text-align:left; padding:4px 12px; border-bottom:1px solid #141c38; white-space:nowrap; }
+  .obs th { color:#56638f; font-weight:400; font-size:9.5px; text-transform:uppercase; letter-spacing:1px; }
+  .obs tr.hl td { background:#15103a; }
+</style>
+
+<!-- shared graph, defined once and reused -->
+<svg style="position:absolute;width:0;height:0" aria-hidden="true">
+  <defs>
+    <pattern id="dots" width="16" height="16" patternUnits="userSpaceOnUse"><circle cx="1" cy="1" r="0.8" fill="#1e2a4a"/></pattern>
+    <linearGradient id="eg" x1="0" x2="1"><stop offset="0" stop-color="#5b8cff"/><stop offset="1" stop-color="#b86bff"/></linearGradient>
+    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+    <symbol id="graph" viewBox="0 0 520 300">
+      <rect x="-400" y="-400" width="1400" height="1200" fill="url(#dots)"/>
+      <g fill="none" stroke="#1f2b55" stroke-width="1.2">
+        <path d="M150 92 C260 92,260 82,370 82"/>
+        <path d="M150 212 C260 212,260 222,370 222"/>
+      </g>
+      <g fill="none" stroke="url(#eg)" stroke-width="1.8" filter="url(#glow)">
+        <path class="flowA" d="M150 92 C175 92,175 152,200 152"/>
+        <path class="flowA" d="M150 212 C175 212,175 152,200 152"/>
+        <path class="flowA" d="M320 152 C345 152,345 82,370 82"/>
+        <path class="flowA" d="M320 152 C345 152,345 222,370 222"/>
+      </g>
+      <g font-size="10.5" font-family="ui-monospace,Consolas,monospace">
+        <g><rect x="30" y="70" width="120" height="44" rx="8" fill="#111833" stroke="#2a3a6e"/><rect x="30" y="70" width="3" height="44" rx="1.5" fill="#5b8cff"/>
+          <text x="42" y="89" fill="#e6ecff" font-weight="600">Gateway</text><text x="42" y="104" fill="#6d7ba8" font-size="8.5">2 clients · 0 ep</text></g>
+        <g><rect x="30" y="190" width="120" height="44" rx="8" fill="#111833" stroke="#2a3a6e"/><rect x="30" y="190" width="3" height="44" rx="1.5" fill="#39d0a8"/>
+          <text x="42" y="209" fill="#e6ecff" font-weight="600">Billing</text><text x="42" y="224" fill="#6d7ba8" font-size="8.5">2 clients · 7 ep</text>
+          <circle cx="142" cy="198" r="4" fill="#ffb454"/></g>
+        <g><rect class="pulse" x="196" y="126" width="128" height="52" rx="10" fill="none" stroke="#b86bff"/>
+          <rect x="200" y="130" width="120" height="44" rx="8" fill="#16103a" stroke="#b86bff"/><rect x="200" y="130" width="3" height="44" rx="1.5" fill="#b86bff"/>
+          <text x="212" y="149" fill="#f3e8ff" font-weight="600">Orders</text><text x="212" y="164" fill="#9d86d9" font-size="8.5">2 clients · 14 ep</text></g>
+        <g opacity=".85"><rect x="370" y="60" width="120" height="44" rx="8" fill="#111833" stroke="#2a3a6e"/><rect x="370" y="60" width="3" height="44" rx="1.5" fill="#ffb454"/>
+          <text x="382" y="79" fill="#e6ecff" font-weight="600">Customers</text><text x="382" y="94" fill="#6d7ba8" font-size="8.5">0 clients · 9 ep</text></g>
+        <g opacity=".85"><rect x="370" y="200" width="120" height="44" rx="8" fill="#111833" stroke="#2a3a6e"/><rect x="370" y="200" width="3" height="44" rx="1.5" fill="#ff6b8b"/>
+          <text x="382" y="219" fill="#e6ecff" font-weight="600">Notifications</text><text x="382" y="234" fill="#6d7ba8" font-size="8.5">0 clients · 4 ep</text></g>
+      </g>
+    </symbol>
+  </defs>
+</svg>
+
+<h2>How should the controls around the graph be laid out?</h2>
+<p class="subtitle">All three use the Observatory style, with <strong>Orders</strong> selected. The panels show the same information (search, filters, details of the selection, endpoints and version drift) arranged differently.</p>
+
+<div class="layouts">
+
+<!-- ================= 1: COMMAND CENTER ================= -->
+<div class="card" data-choice="command-center" onclick="toggleSelect(this)">
+  <div class="card-image"><div class="obs">
+    <div class="top">
+      <div class="logo">dep<b>enk</b></div>
+      <div class="crumbs">System / <span>orders</span></div>
+      <div class="search">Search repos, packages, endpoints… <span class="kbd">Ctrl K</span></div>
+    </div>
+    <div class="body">
+      <div class="side">
+        <div><div class="h">Repos · 5</div>
+          <div class="row"><div class="dot" style="background:#5b8cff"></div>gateway<span class="cnt">2↗</span></div>
+          <div class="row"><div class="dot" style="background:#39d0a8"></div>billing<span class="cnt warn">⚠</span></div>
+          <div class="row sel"><div class="dot" style="background:#b86bff"></div>orders<span class="cnt">14</span></div>
+          <div class="row"><div class="dot" style="background:#ffb454"></div>customers<span class="cnt">9</span></div>
+          <div class="row"><div class="dot" style="background:#ff6b8b"></div>notifications<span class="cnt">4</span></div>
+        </div>
+        <div><div class="h">Show</div>
+          <div class="row"><div class="chk on"></div>API client packages</div>
+          <div class="row"><div class="chk on"></div>Shared libraries</div>
+          <div class="row"><div class="chk"></div>Third-party</div>
+          <div class="row"><div class="chk"></div>Test projects</div>
+        </div>
+        <div><div class="h">Depth</div>
+          <div class="seg"><div class="on">Repo</div><div>Project</div><div>Endpoint</div></div>
+        </div>
+        <div><div class="h">Highlight</div>
+          <div class="seg"><div class="on">Up+Down</div><div>Up</div><div>Down</div></div>
+        </div>
+      </div>
+      <div class="canvas"><svg preserveAspectRatio="xMidYMid meet"><use href="#graph"/></svg></div>
+      <div class="insp">
+        <div><div class="title">orders</div><div class="sub">./repos/orders · 3 projects</div></div>
+        <div><div class="h">Publishes</div><div class="row" style="padding-left:0">📦 Orders.Client <span class="cnt">3.4.1</span></div></div>
+        <div><div class="h">Called by · 3</div>
+          <div class="row" style="padding-left:0"><div class="dot" style="background:#5b8cff"></div>Gateway.Api<span class="cnt">3.4.1</span></div>
+          <div class="row" style="padding-left:0"><div class="dot" style="background:#39d0a8"></div>Billing.Api<span class="cnt warn">3.2.0 ⚠</span></div>
+          <div class="row" style="padding-left:0"><div class="dot" style="background:#39d0a8"></div>Billing.Worker<span class="cnt">3.4.1</span></div>
+        </div>
+        <div><div class="h">Endpoints · 14</div>
+          <div class="ep"><span class="verb g">GET</span>/api/orders/{id}<span class="cnt">3</span></div>
+          <div class="ep"><span class="verb p">POST</span>/api/orders<span class="cnt">1</span></div>
+          <div class="ep"><span class="verb d">DEL</span>/api/orders/{id}<span class="cnt" style="color:#ff6b8b">0</span></div>
+          <div class="sub" style="padding-top:4px">+ 11 more →</div>
+        </div>
+      </div>
+    </div>
+  </div></div>
+  <div class="card-body">
+    <h3>1 · Command Center</h3>
+    <p>A classic three-column layout, like an IDE. <strong>Left:</strong> repo list, filters and the depth switch (repo, project or endpoint). <strong>Center:</strong> the graph. <strong>Right:</strong> an inspector for whatever is selected, showing callers, versions and endpoints. Everything stays visible, which suits long sessions exploring the system.</p>
+    <p style="margin-top:.4rem"><span class="tag">always-visible controls</span><span class="tag">familiar</span><span class="tag">less canvas space</span></p>
+  </div>
+</div>
+
+<!-- ================= 2: FLOATING / IMMERSIVE ================= -->
+<div class="card" data-choice="immersive" onclick="toggleSelect(this)">
+  <div class="card-image"><div class="obs">
+    <div class="canvas" style="flex:1"><svg preserveAspectRatio="xMidYMid meet" viewBox="-60 -10 640 320"><use href="#graph" x="0" y="0" width="520" height="300"/></svg>
+      <!-- floating top bar -->
+      <div class="glass" style="top:14px;left:50%;transform:translateX(-50%);width:420px;height:34px;display:flex;align-items:center;gap:10px;padding:0 12px">
+        <span class="logo">dep<b>enk</b></span><span style="color:#2a3a6e">|</span>
+        <span style="color:#56638f;flex:1">Ask or search… “who calls GET /api/orders/{id}”</span><span class="kbd">Ctrl K</span>
+      </div>
+      <!-- floating filter chips -->
+      <div style="position:absolute;top:58px;left:50%;transform:translateX(-50%);display:flex;gap:6px">
+        <span class="pill" style="background:#1f2b5a;color:#e6ecff">● clients</span>
+        <span class="pill" style="background:#1f2b5a;color:#e6ecff">● shared libs</span>
+        <span class="pill" style="border:1px solid #26356a;color:#56638f">○ third-party</span>
+        <span class="pill" style="border:1px solid #26356a;color:#56638f">○ tests</span>
+      </div>
+      <!-- floating inspector -->
+      <div class="glass" style="top:100px;right:16px;width:250px;padding:12px;display:flex;flex-direction:column;gap:9px">
+        <div style="display:flex;justify-content:space-between"><div class="title">orders</div><span class="sub">✕</span></div>
+        <div class="sub">publishes 📦 Orders.Client 3.4.1</div>
+        <div><div class="h">Called by · 3</div>
+          <div class="row" style="padding-left:0">Gateway.Api<span class="cnt">3.4.1</span></div>
+          <div class="row" style="padding-left:0">Billing.Api<span class="cnt warn">3.2.0 ⚠</span></div>
+          <div class="row" style="padding-left:0">Billing.Worker<span class="cnt">3.4.1</span></div></div>
+        <div style="display:flex;gap:6px"><span class="pill" style="background:#b86bff;color:#0a0e1c">Open endpoints →</span><span class="pill" style="border:1px solid #26356a">Impact</span></div>
+      </div>
+      <!-- legend + minimap -->
+      <div class="glass" style="bottom:14px;left:14px;padding:8px 10px;display:flex;gap:12px;color:#8a97c4">
+        <span><span style="color:#b86bff">━</span> selected path</span><span><span style="color:#1f2b55">━</span> other</span><span class="warn">● version drift</span>
+      </div>
+      <div class="glass" style="bottom:14px;right:14px;width:120px;height:70px;padding:6px"><svg viewBox="0 0 520 300" style="position:static;width:100%;height:100%"><use href="#graph"/><rect x="150" y="40" width="260" height="200" fill="none" stroke="#b86bff" stroke-width="6"/></svg></div>
+    </div>
+  </div></div>
+  <div class="card-body">
+    <h3>2 · Immersive</h3>
+    <p>The graph fills the screen. Controls <strong>float over it</strong> as translucent panels: a search and command bar at the top, filter chips, an inspector that appears when you select something, a legend and a minimap. It's the most striking layout and the closest match to the Observatory feel, and it stays clean while you explore.</p>
+    <p style="margin-top:.4rem"><span class="tag">max canvas</span><span class="tag">keyboard-first</span><span class="tag">panels on demand</span></p>
+  </div>
+</div>
+
+<!-- ================= 3: EXPLORER + DRAWER ================= -->
+<div class="card" data-choice="explorer" onclick="toggleSelect(this)">
+  <div class="card-image"><div class="obs">
+    <div class="top">
+      <div class="logo">dep<b>enk</b></div>
+      <div class="crumbs">System / <span>orders</span></div>
+      <span class="pill" style="background:#1f2b5a;color:#e6ecff;margin-left:14px">clients</span>
+      <span class="pill" style="background:#1f2b5a;color:#e6ecff">shared libs</span>
+      <span class="pill" style="border:1px solid #26356a;color:#56638f">third-party</span>
+      <div class="search">Search… <span class="kbd">Ctrl K</span></div>
+    </div>
+    <div class="canvas" style="flex:1"><svg preserveAspectRatio="xMidYMid meet"><use href="#graph"/></svg></div>
+    <div class="drawer">
+      <div class="tabs"><div class="on">Callers (3)</div><div>Endpoints (14)</div><div class="warn">Version drift (1)</div><div>Unresolved (2)</div><div style="margin-left:auto">▾</div></div>
+      <div style="overflow:hidden"><table>
+        <tr><th>Consumer</th><th>Package</th><th>Version</th><th>Calls</th><th>Confidence</th></tr>
+        <tr><td>Gateway.Api</td><td>Orders.Client</td><td>3.4.1</td><td>GetOrderAsync, CreateOrderAsync</td><td style="color:#39d0a8">high</td></tr>
+        <tr class="hl"><td>Billing.Api</td><td>Orders.Client</td><td class="warn">3.2.0 ⚠ latest 3.4.1</td><td>GetOrderAsync</td><td style="color:#39d0a8">high</td></tr>
+        <tr><td>Billing.Worker</td><td>Orders.Client</td><td>3.4.1</td><td>ListOrdersAsync</td><td style="color:#ffb454">medium</td></tr>
+      </table></div>
+    </div>
+  </div></div>
+  <div class="card-body">
+    <h3>3 · Explorer + Data Drawer</h3>
+    <p>The graph sits on top, with a <strong>browser-DevTools-style drawer of sortable tables</strong> underneath: callers, endpoints, version drift and unresolved links. Clicking a row highlights it in the graph, and selecting a node filters the tables. This is the best layout for audits and answering questions like "which consumers are behind on versions?".</p>
+    <p style="margin-top:.4rem"><span class="tag">graph + tables</span><span class="tag">audit-friendly</span><span class="tag">dense</span></p>
+  </div>
+</div>
+
+</div>
