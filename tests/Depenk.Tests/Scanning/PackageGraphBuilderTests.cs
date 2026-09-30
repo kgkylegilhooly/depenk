@@ -64,6 +64,11 @@ public class PackageGraphBuilderTests
         Assert.Equal(2, g.Packages.Single(p => p.PackageId == "Acme.Shared").ProducerProjectIds.Count);
         Assert.All(g.EdgesOf(EdgeKind.Produces), e => Assert.Equal(Confidence.Low, e.Confidence));
         Assert.Contains(g.Diagnostics, d => d.Kind == DiagnosticKinds.AmbiguousProducer && d.NodeIds.Contains("pkg:Acme.Shared"));
+
+        // Repo c's dependsOn edges to a and b are Low confidence because the package has ambiguous producers
+        var cDeps = g.EdgesOf(EdgeKind.DependsOn).Where(e => e.From == "repo:c").ToList();
+        Assert.Equal(2, cDeps.Count);
+        Assert.All(cDeps, e => Assert.Equal(Confidence.Low, e.Confidence));
     }
 
     [Fact]
@@ -116,5 +121,57 @@ public class PackageGraphBuilderTests
         cfg.Projects.Ignore.Add("*.Benchmarks");
         var (_, projects) = Run(ws, cfg);
         Assert.Equal(["App"], projects.Select(p => p.File.Name));
+    }
+
+    [Fact]
+    public void CaseInsensitivePackageIds_ResolveToCanonicalNode()
+    {
+        using var ws = new TempWorkspace().Repo("orders").Repo("billing")
+            .File("orders/src/Orders.Client/Orders.Client.csproj",
+                Csproj("Microsoft.NET.Sdk", "<IsPackable>true</IsPackable><Version>1.0.0</Version>"))
+            .File("billing/src/Billing.Api/Billing.Api.csproj",
+                Csproj("Microsoft.NET.Sdk.Web", "",
+                    "<PackageReference Include=\"orders.client\" Version=\"1.0.0\" />" +
+                    "<PackageReference Include=\"Orders.Client\" Version=\"1.0.0\" />"));
+
+        var (g, _) = Run(ws);
+
+        // Should have exactly one package node for Orders.Client (producer's casing)
+        var pkgs = g.Packages.Where(p => p.PackageId.Equals("Orders.Client", StringComparison.OrdinalIgnoreCase)).ToList();
+        Assert.Single(pkgs);
+        var pkgId = pkgs[0].Id;
+
+        // Both references should point to the same package node
+        var refs = g.EdgesOf(EdgeKind.References).Where(e => e.To == pkgId).ToList();
+        Assert.Equal(2, refs.Count);
+        Assert.All(refs, e => Assert.Equal("proj:billing/Billing.Api", e.From));
+    }
+
+    [Fact]
+    public void DuplicateProjectNames_GetSuffixedIds_AndDiagnostic()
+    {
+        using var ws = new TempWorkspace().Repo("r")
+            .File("r/a/Api/Api.csproj", Csproj("Microsoft.NET.Sdk"))
+            .File("r/b/Api/Api.csproj", Csproj("Microsoft.NET.Sdk"));
+
+        var cfg = new DepenkConfig();
+        var g = new DepGraph();
+        var repos = RepoDiscovery.Discover(ws.Root, cfg);
+        g.Repos.AddRange(repos.Select(repo => new RepoNode(Ids.Repo(repo.Name), repo.Name, repo.RelativePath, repo.HeadSha, repo.Dirty)));
+        var projects = PackageGraphBuilder.LoadProjects(ws.Root, repos, cfg, g);
+        var kinds = projects.ToDictionary(p => p.Id,
+            p => ProjectClassifier.Classify(p.File, new ProjectSignals(false, false), cfg));
+        PackageGraphBuilder.Build(ws.Root, projects, kinds, cfg, g);
+
+        // Should have two projects with different IDs
+        var projIds = projects.Select(p => p.Id).Order().ToList();
+        Assert.Equal(["proj:r/Api", "proj:r/Api#2"], projIds);
+
+        // Should have one diagnostic for duplicate project name
+        var diag = g.Diagnostics.Single(d => d.Kind == DiagnosticKinds.DuplicateProjectName);
+        Assert.Contains("proj:r/Api", diag.NodeIds);
+        Assert.Contains("proj:r/Api#2", diag.NodeIds);
+        Assert.Contains("r/a/Api/Api.csproj", diag.Message);
+        Assert.Contains("r/b/Api/Api.csproj", diag.Message);
     }
 }

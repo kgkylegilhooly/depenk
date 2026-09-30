@@ -7,5 +7,6 @@ public static class DiagnosticKinds
     public const string VersionDrift = "versionDrift", UnresolvedClientMethod = "unresolvedClientMethod",
         AmbiguousRoute = "ambiguousRoute", AmbiguousProducer = "ambiguousProducer",
         UnresolvedVersion = "unresolvedVersion", Cycle = "cycle", UnusedEndpoint = "unusedEndpoint",
-        UnusedModel = "unusedModel", UnusedClientMethod = "unusedClientMethod", ParseError = "parseError";
+        UnusedModel = "unusedModel", UnusedClientMethod = "unusedClientMethod", ParseError = "parseError",
+        DuplicateProjectName = "duplicateProjectName";
 }

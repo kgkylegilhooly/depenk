@@ -4,11 +4,11 @@ using Depenk.Scanning.Config;
 
 namespace Depenk.Scanning;
 
-public sealed class ScannedProject(DiscoveredRepo repo, ProjectFile file)
+public sealed class ScannedProject(DiscoveredRepo repo, ProjectFile file, string? id = null)
 {
     public DiscoveredRepo Repo { get; } = repo;
     public ProjectFile File { get; } = file;
-    public string Id { get; } = Ids.Project(repo.Name, file.Name);
+    public string Id { get; } = id ?? Ids.Project(repo.Name, file.Name);
     public string Directory => Path.GetDirectoryName(File.AbsolutePath)!;
 }
 
@@ -18,13 +18,38 @@ public static class PackageGraphBuilder
         DepenkConfig config, DepGraph graph)
     {
         var result = new List<ScannedProject>();
+        var usedIds = new Dictionary<string, (ScannedProject Project, string RelPath)>(StringComparer.Ordinal);
+        var duplicates = new List<(string Id, string RelPath, string OtherRelPath)>();
+
         foreach (var repo in repos)
         foreach (var csproj in PathUtil.EnumerateFiles(repo.AbsolutePath, "*.csproj").Order(StringComparer.Ordinal))
         {
             if (Glob.Any(config.Projects.Ignore, Path.GetFileNameWithoutExtension(csproj))) continue;
             try
             {
-                result.Add(new ScannedProject(repo, ProjectParser.Parse(csproj, repo.AbsolutePath)));
+                var pf = ProjectParser.Parse(csproj, repo.AbsolutePath);
+                var baseId = Ids.Project(repo.Name, pf.Name);
+                var id = baseId;
+                var suffix = 2;
+
+                // Check for duplicate project IDs within the same repo
+                while (usedIds.ContainsKey(id))
+                {
+                    id = Ids.Project(repo.Name, pf.Name) + $"#{suffix}";
+                    suffix++;
+                }
+
+                var sp = new ScannedProject(repo, pf, id);
+                result.Add(sp);
+                var rel = PathUtil.Rel(workspace, csproj);
+                usedIds[id] = (sp, rel);
+
+                // Track for duplicate diagnostic
+                if (id != baseId)
+                {
+                    var (_, otherRel) = usedIds[baseId];
+                    duplicates.Add((baseId, rel, otherRel));
+                }
             }
             catch (Exception ex) when (ex is ProjectParseException or IOException or UnauthorizedAccessException)
             {
@@ -33,6 +58,16 @@ public static class PackageGraphBuilder
                     $"{rel}: {(ex.InnerException ?? ex).Message}"));
             }
         }
+
+        // Add duplicate diagnostics
+        foreach (var (baseId, rel, otherRel) in duplicates)
+        {
+            var suffixedId = baseId + "#2";
+            graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.DuplicateProjectName, "info",
+                [baseId, suffixedId],
+                $"Duplicate project name: {otherRel} and {rel} both produce project ID {baseId}; renamed to {suffixedId}."));
+        }
+
         return result;
     }
 
@@ -57,16 +92,25 @@ public static class PackageGraphBuilder
             .Distinct(StringComparer.OrdinalIgnoreCase)
             .Order(StringComparer.OrdinalIgnoreCase);
 
+        // Build canonical packageId map: use producer's casing when available, otherwise the ID as-is
+        var canonicalPackageId = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
         var producerRepoByPackage = new Dictionary<string, List<string>>(StringComparer.OrdinalIgnoreCase);
+        var packageIsAmbiguous = new Dictionary<string, bool>(StringComparer.OrdinalIgnoreCase);
+
         foreach (var id in packageIds)
         {
             var producers = producersById.TryGetValue(id, out var list) ? list : [];
             if (config.Packages.Producers.TryGetValue(id, out var pinnedRepo))
                 producers = producers.Where(p => p.Repo.Name.Equals(pinnedRepo, StringComparison.OrdinalIgnoreCase)).ToList();
 
-            var pkgId = Ids.Package(id);
-            graph.Packages.Add(new PackageNode(pkgId, id, producers.Select(p => p.Id).ToList()));
-            producerRepoByPackage[id] = producers.Select(p => p.Repo.Name).Distinct().ToList();
+            // Canonical casing: prefer producer's casing
+            var canonical = producers.Count > 0 ? producers[0].File.EffectivePackageId : id;
+            canonicalPackageId[id] = canonical;
+            packageIsAmbiguous[canonical] = producers.Count > 1;
+
+            var pkgId = Ids.Package(canonical);
+            graph.Packages.Add(new PackageNode(pkgId, canonical, producers.Select(p => p.Id).ToList()));
+            producerRepoByPackage[canonical] = producers.Select(p => p.Repo.Name).Distinct().ToList();
 
             var confidence = producers.Count > 1 ? Confidence.Low : Confidence.Certain;
             foreach (var prod in producers)
@@ -74,27 +118,37 @@ public static class PackageGraphBuilder
             if (producers.Count > 1)
                 graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousProducer, "warning",
                     [pkgId, .. producers.Select(p => p.Id)],
-                    $"Package {id} is produced by {producers.Count} projects: {string.Join(", ", producers.Select(p => p.Id))}. Pin one with packages.producers in depenk.yml."));
+                    $"Package {canonical} is produced by {producers.Count} projects: {string.Join(", ", producers.Select(p => p.Id))}. Pin one with packages.producers in depenk.yml."));
         }
 
-        var dependsOn = new Dictionary<(string From, string To), SortedSet<string>>();
+        var dependsOnData = new Dictionary<(string From, string To), (SortedSet<string> Packages, bool HasAmbiguous)>();
         foreach (var p in projects)
         foreach (var r in p.File.PackageReferences)
         {
-            graph.Edges.Add(new Edge(EdgeKind.References, p.Id, Ids.Package(r.Id), Confidence.Certain) { Version = r.Version });
+            var canonical = canonicalPackageId.TryGetValue(r.Id, out var c) ? c : r.Id;
+            graph.Edges.Add(new Edge(EdgeKind.References, p.Id, Ids.Package(canonical), Confidence.Certain) { Version = r.Version });
             if (ProjectFile.IsUnresolved(r.Version))
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedVersion, "info", [p.Id, Ids.Package(r.Id)],
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedVersion, "info", [p.Id, Ids.Package(canonical)],
                     $"{p.Id} references {r.Id} with a version that could not be resolved: {r.Version}"));
 
-            foreach (var producerRepo in producerRepoByPackage.GetValueOrDefault(r.Id, []))
+            foreach (var producerRepo in producerRepoByPackage.GetValueOrDefault(canonical, []))
             {
-                if (producerRepo == p.Repo.Name) continue;
+                if (producerRepo.Equals(p.Repo.Name, StringComparison.OrdinalIgnoreCase)) continue;
                 var key = (Ids.Repo(p.Repo.Name), Ids.Repo(producerRepo));
-                if (!dependsOn.TryGetValue(key, out var via)) dependsOn[key] = via = new SortedSet<string>(StringComparer.Ordinal);
-                via.Add(r.Id);
+                if (!dependsOnData.ContainsKey(key))
+                    dependsOnData[key] = (new SortedSet<string>(StringComparer.Ordinal), false);
+
+                var (packages, hasAmbiguous) = dependsOnData[key];
+                packages.Add(canonical);
+                if (packageIsAmbiguous.GetValueOrDefault(canonical, false))
+                    hasAmbiguous = true;
+                dependsOnData[key] = (packages, hasAmbiguous);
             }
         }
-        foreach (var ((from, to), via) in dependsOn.OrderBy(k => k.Key.From).ThenBy(k => k.Key.To))
-            graph.Edges.Add(new Edge(EdgeKind.DependsOn, from, to, Confidence.Certain) { ViaPackages = [.. via] });
+        foreach (var ((from, to), (via, hasAmbiguous)) in dependsOnData.OrderBy(k => k.Key.From).ThenBy(k => k.Key.To))
+        {
+            var confidence = hasAmbiguous ? Confidence.Low : Confidence.Certain;
+            graph.Edges.Add(new Edge(EdgeKind.DependsOn, from, to, confidence) { ViaPackages = [.. via] });
+        }
     }
 }
