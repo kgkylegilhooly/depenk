@@ -5,6 +5,9 @@ namespace Depenk.Analysis.Clients;
 
 public sealed class GenericHttpStrategy : IRouteStrategy
 {
+    private static readonly HashSet<string> IgnoredReceivers = ["Path", "File", "Directory", "Environment"];
+    private static readonly HashSet<string> IgnoredNames = ["GetSection", "GetValue", "GetConnectionString"];
+
     public RouteHit? Match(MethodDeclarationSyntax method, TypeDeclarationSyntax owner)
     {
         foreach (var node in method.DescendantNodes())
@@ -17,6 +20,7 @@ public sealed class GenericHttpStrategy : IRouteStrategy
 
             if (node is InvocationExpressionSyntax inv)
             {
+                var hasReceiver = inv.Expression is MemberAccessExpressionSyntax;
                 var name = inv.Expression switch
                 {
                     MemberAccessExpressionSyntax m => m.Name.Identifier.Text,
@@ -25,7 +29,10 @@ public sealed class GenericHttpStrategy : IRouteStrategy
                     _ => null,
                 };
                 if (name is null || Verbs.FromMethodName(name) is not { } verb) continue;
-                if (name == method.Identifier.Text) continue; // self/overload call, handled by delegation pass
+                if (IgnoredNames.Contains(name)) continue;
+                if (inv.Expression is MemberAccessExpressionSyntax ma
+                    && IgnoredReceivers.Contains(ma.Expression.ToString().Split('.')[^1])) continue;
+                if (!hasReceiver && name == method.Identifier.Text) continue; // self/overload call, handled by delegation pass
                 var route = inv.ArgumentList.Arguments.Select(a => Verbs.RouteValue(a.Expression, method))
                     .FirstOrDefault(Verbs.IsRouteLike);
                 if (route is not null) return new RouteHit(verb, route, "generic-http", Confidence.Medium);

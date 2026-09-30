@@ -16,7 +16,8 @@ internal static class Verbs
         [("Get", "GET"), ("Post", "POST"), ("Put", "PUT"), ("Delete", "DELETE"), ("Patch", "PATCH")];
 
     public static string? FromMethodName(string name) =>
-        Prefixes.FirstOrDefault(p => name.StartsWith(p.Prefix, StringComparison.OrdinalIgnoreCase)).Verb;
+        Prefixes.FirstOrDefault(p => name.StartsWith(p.Prefix, StringComparison.Ordinal)
+            && (name.Length == p.Prefix.Length || char.IsUpper(name[p.Prefix.Length]))).Verb;
 
     /// <summary>HttpMethod.Get / HttpMethod.Put / new HttpMethod("GET").</summary>
     public static string? FromHttpMethodExpression(ExpressionSyntax e) => e switch

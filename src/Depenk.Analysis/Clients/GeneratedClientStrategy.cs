@@ -1,5 +1,7 @@
 using System.Text.RegularExpressions;
 using Depenk.Core.Model;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static Depenk.Analysis.SyntaxHelpers;
 
@@ -10,19 +12,41 @@ public sealed partial class GeneratedClientStrategy : IRouteStrategy
     public RouteHit? Match(MethodDeclarationSyntax method, TypeDeclarationSyntax owner) =>
         MatchNSwag(method) ?? MatchKiota(method, owner);
 
+    [GeneratedRegex(@"//\s*Operation Path:\s*""([^""]*)""")]
+    private static partial Regex OperationPath();
+
+    private static bool MentionsBaseUrl(ExpressionSyntax e) =>
+        e.DescendantNodesAndSelf().OfType<IdentifierNameSyntax>()
+            .Any(i => i.Identifier.Text.Contains("baseurl", StringComparison.OrdinalIgnoreCase));
+
+    private static bool RootsAtUrlBuilder(ExpressionSyntax e) => e switch
+    {
+        IdentifierNameSyntax id => id.Identifier.Text == "urlBuilder_",
+        InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax m } => RootsAtUrlBuilder(m.Expression),
+        _ => false,
+    };
+
     private static RouteHit? MatchNSwag(MethodDeclarationSyntax method)
     {
-        var appends = method.DescendantNodes().OfType<InvocationExpressionSyntax>()
-            .Where(i => i.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Append" } m
-                        && m.Expression.ToString() == "urlBuilder_" && i.ArgumentList.Arguments.Count == 1)
-            .Select(i => StringValue(i.ArgumentList.Arguments[0].Expression) ?? "{}")
-            .ToList();
-        if (appends.Count == 0) return null;
-
         var verb = method.DescendantNodes().OfType<AssignmentExpressionSyntax>()
             .Where(a => a.Left.ToString().EndsWith(".Method", StringComparison.Ordinal))
             .Select(a => Verbs.FromHttpMethodExpression(a.Right)).FirstOrDefault(v => v is not null);
-        return verb is null ? null : new RouteHit(verb, string.Concat(appends), "generated", Confidence.High);
+        if (verb is null) return null;
+
+        if (method.Body is { } body)
+            foreach (var t in body.DescendantTrivia())
+                if (t.IsKind(SyntaxKind.SingleLineCommentTrivia) && OperationPath().Match(t.ToString()) is { Success: true } om)
+                    return new RouteHit(verb, om.Groups[1].Value, "generated", Confidence.High);
+
+        var appends = method.DescendantNodes().OfType<InvocationExpressionSyntax>()
+            .Where(i => i.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "Append" } m
+                        && RootsAtUrlBuilder(m.Expression) && i.ArgumentList.Arguments.Count == 1)
+            .OrderBy(i => i.ArgumentList.SpanStart)
+            .Select(i => i.ArgumentList.Arguments[0].Expression)
+            .Where(e => !MentionsBaseUrl(e))
+            .Select(e => StringValue(e) ?? "{}")
+            .ToList();
+        return appends.Count == 0 ? null : new RouteHit(verb, string.Concat(appends), "generated", Confidence.High);
     }
 
     private static RouteHit? MatchKiota(MethodDeclarationSyntax method, TypeDeclarationSyntax owner)

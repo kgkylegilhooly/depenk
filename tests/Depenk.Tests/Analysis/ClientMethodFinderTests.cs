@@ -148,9 +148,11 @@ public class ClientMethodFinderTests
             public class OrdersClient(HttpClient http)
             {
                 public Task<HttpResponseMessage> Post(string body) => http.PostAsync("/orders", new StringContent(body, null, "application/json"));
+                public Task<HttpResponseMessage> Send(string body) => http.PostRaw("application/json", "/orders/x", body);
             }
             """, cfg);
         Assert.Equal("/api/orders", m["OrdersClient.Post"].Route);
+        Assert.Equal("/api/orders/x", m["OrdersClient.Send"].Route);
     }
 
     [Fact]
@@ -160,5 +162,82 @@ public class ClientMethodFinderTests
             "public class Maths { public int Add(int a, int b) => a + b; }")));
         Assert.False(result.AnyHit);
         Assert.Empty(result.Methods);
+    }
+
+    [Fact]
+    public void Generic_SameNameAsMethod_WithReceiver_IsAHit()
+    {
+        var m = Find("""
+            public class OrdersClient(HttpClient http)
+            {
+                public Task<HttpResponseMessage> GetAsync(Guid id) => http.GetAsync($"api/orders/{id}");
+                public Task<HttpResponseMessage> DeleteAsync(Guid id) => http.DeleteAsync($"api/orders/{id}");
+            }
+            """);
+        Assert.Equal("GET", m["OrdersClient.GetAsync"].Verb);
+        Assert.Equal("DELETE", m["OrdersClient.DeleteAsync"].Verb);
+    }
+
+    [Fact]
+    public void NSwag_OlderChainedShape_SkipsBaseUrl()
+    {
+        var m = Find("""
+            public partial class OrdersClient
+            {
+                public virtual async Task<OrderDto> GetOrderAsync(Guid id)
+                {
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    urlBuilder_.Append(BaseUrl != null ? BaseUrl.TrimEnd('/') : "").Append("/api/orders/{id}");
+                    urlBuilder_.Replace("{id}", System.Uri.EscapeDataString(ConvertToString(id)));
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    return null!;
+                }
+            }
+            """);
+        Assert.Equal("api/orders/{}", m["OrdersClient.GetOrderAsync"].NormalizedRoute);
+    }
+
+    [Fact]
+    public void NSwag_NewerShape_UsesOperationPathComment_AndCharLiterals()
+    {
+        var m = Find("""
+            public partial class OrdersClient
+            {
+                public virtual async Task<OrderDto> GetOrderAsync(Guid id)
+                {
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    // Operation Path: "api/orders/{id}"
+                    urlBuilder_.Append("api/orders/");
+                    urlBuilder_.Append(System.Uri.EscapeDataString(ConvertToString(id)));
+                    urlBuilder_.Append('?');
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    return null!;
+                }
+                public virtual async Task<OrderDto> ListAsync()
+                {
+                    var urlBuilder_ = new System.Text.StringBuilder();
+                    urlBuilder_.Append("api/orders").Append('/').Append("all");
+                    request_.Method = new System.Net.Http.HttpMethod("GET");
+                    return null!;
+                }
+            }
+            """);
+        Assert.Equal("api/orders/{}", m["OrdersClient.GetOrderAsync"].NormalizedRoute);
+        Assert.Equal("api/orders/all", m["OrdersClient.ListAsync"].NormalizedRoute);
+    }
+
+    [Fact]
+    public void Generic_FalsePositives_AreIgnored()
+    {
+        var m = Find("""
+            public class Misc(IConfiguration config)
+            {
+                public Task<string> A() { var n = Path.GetFileName("a/b"); return null!; }
+                public Task<string> B() { var s = config.GetSection("A/B"); return null!; }
+                public Task<string> C() { Postpone("x/y"); return null!; }
+                public Task<string> D() { Getaway("x/y"); return null!; }
+            }
+            """);
+        Assert.Empty(m);
     }
 }

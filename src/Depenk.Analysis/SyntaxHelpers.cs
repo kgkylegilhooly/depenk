@@ -38,6 +38,7 @@ public static class SyntaxHelpers
     private static string? StringValue(ExpressionSyntax e, int depth) => depth > 10 ? null : e switch
     {
         LiteralExpressionSyntax l when l.IsKind(SyntaxKind.StringLiteralExpression) => l.Token.ValueText,
+        LiteralExpressionSyntax l when l.IsKind(SyntaxKind.CharacterLiteralExpression) => l.Token.ValueText,
         InterpolatedStringExpressionSyntax i => string.Concat(i.Contents.Select(c => c switch
         {
             InterpolatedStringTextSyntax t => t.TextToken.ValueText,
