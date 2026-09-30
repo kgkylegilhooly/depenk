@@ -105,4 +105,99 @@ public class EndpointFinderTests
             """)));
         Assert.Equal("/api/ping/{n}", eps.Single().Route);
     }
+
+    [Fact]
+    public void SymbolicStatusCodes_AreResolved()
+    {
+        var eps = new ControllerEndpointFinder().Find(Src.Set(("c.cs", """
+            public class XController : ControllerBase
+            {
+                [HttpGet("a")]
+                [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+                [ProducesResponseType(StatusCodes.Status201Created)]
+                public IActionResult A() => Ok();
+            }
+            """))).Single();
+        Assert.Equal([new ResponseType(404, "ProblemDetails"), new ResponseType(201, "")], eps.Responses);
+    }
+
+    [Fact]
+    public void FluentWrappedGroup_KeepsPrefix()
+    {
+        var eps = new MinimalApiEndpointFinder().Find(Src.Set(("Program.cs", """
+            var g = app.MapGroup("/api").WithTags("x").RequireAuthorization();
+            g.MapGet("items", () => "ok");
+            app.MapGroup("v2").WithOpenApi().MapGet("direct", () => "ok");
+            """))).ToList();
+        Assert.Equal(["/api/items", "/v2/direct"], eps.Select(e => e.Route));
+    }
+
+    [Fact]
+    public void GroupVariables_ResolveWithinTheirOwnMethod()
+    {
+        var eps = new MinimalApiEndpointFinder().Find(Src.Set(("Routes.cs", """
+            public static class Routes
+            {
+                public static void A(WebApplication app) { var g = app.MapGroup("/a"); g.MapGet("x", () => "ok"); }
+                public static void B(WebApplication app) { var g = app.MapGroup("/b"); g.MapGet("y", () => "ok"); }
+                public static void C(RouteGroupBuilder g) { g.MapGet("z", () => "ok"); }
+            }
+            """))).ToList();
+        Assert.Equal(["/a/x", "/b/y", "/z"], eps.Select(e => e.Route));
+    }
+
+    [Fact]
+    public void NestedLambdaUsesOuterGroupVariable()
+    {
+        var eps = new MinimalApiEndpointFinder().Find(Src.Set(("Program.cs", """
+            var g = app.MapGroup("/outer");
+            app.Lifetime(() => { g.MapGet("in", () => "ok"); });
+            """))).ToList();
+        Assert.Equal("/outer/in", eps.Single().Route);
+    }
+
+    [Fact]
+    public void DiServices_AreNotParameters()
+    {
+        var eps = new MinimalApiEndpointFinder().Find(Src.Set(("Program.cs", """
+            app.MapPost("/r", (CreateRefund body, IRefundService svc, ILogger<Program> log, IFormFile file) => "ok");
+            """))).Single();
+        Assert.Equal(["body", "file"], eps.Parameters.Select(p => p.Name));
+    }
+
+    [Fact]
+    public void ValueTaskReturnTypes_ProduceNoResponse()
+    {
+        var eps = new ControllerEndpointFinder().Find(Src.Set(("c.cs", """
+            public class XController : ControllerBase
+            {
+                [HttpGet("a")] public ValueTask<IActionResult> A() => default;
+                [HttpGet("b")] public ValueTask B() => default;
+                [HttpGet("c")] public ValueTask<ActionResult> C() => default;
+            }
+            """))).ToList();
+        Assert.All(eps, e => Assert.Empty(e.Responses));
+    }
+
+    [Fact]
+    public void CyclicConsts_ReturnNullWithoutThrowing()
+    {
+        var tree = Microsoft.CodeAnalysis.CSharp.CSharpSyntaxTree.ParseText(
+            "class K { const string A = B; const string B = A; string F = A; }");
+        var expr = tree.GetRoot().DescendantNodes().OfType<Microsoft.CodeAnalysis.CSharp.Syntax.VariableDeclaratorSyntax>()
+            .Single(v => v.Identifier.Text == "F").Initializer!.Value;
+        Assert.Null(Depenk.Analysis.SyntaxHelpers.StringValue(expr));
+    }
+
+    [Fact]
+    public void NamedTemplateArgument_IsRead()
+    {
+        var eps = new ControllerEndpointFinder().Find(Src.Set(("c.cs", """
+            public class XController : ControllerBase
+            {
+                [HttpGet(template: "x")] public string X() => "";
+            }
+            """)));
+        Assert.Equal("/x", eps.Single().Route);
+    }
 }

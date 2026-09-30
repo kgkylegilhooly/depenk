@@ -24,7 +24,7 @@ public static class SyntaxHelpers
     public static IEnumerable<AttributeSyntax> Attrs(ParameterSyntax p) => p.AttributeLists.SelectMany(l => l.Attributes);
 
     public static string? FirstStringArg(AttributeSyntax a) =>
-        a.ArgumentList?.Arguments.Where(x => x.NameEquals is null && x.NameColon is null)
+        a.ArgumentList?.Arguments.Where(x => x.NameEquals is null && (x.NameColon is null || x.NameColon.Name.Identifier.Text == "template"))
             .Select(x => StringValue(x.Expression)).FirstOrDefault(s => s is not null);
 
     public static int Line(SyntaxNode n) => n.GetLocation().GetLineSpan().StartLinePosition.Line + 1;
@@ -33,7 +33,9 @@ public static class SyntaxHelpers
     public static string TypeName(TypeSyntax t) => t.ToString().Replace("global::", "");
 
     /// <summary>Best-effort static string value of an expression.</summary>
-    public static string? StringValue(ExpressionSyntax e) => e switch
+    public static string? StringValue(ExpressionSyntax e) => StringValue(e, 0);
+
+    private static string? StringValue(ExpressionSyntax e, int depth) => depth > 10 ? null : e switch
     {
         LiteralExpressionSyntax l when l.IsKind(SyntaxKind.StringLiteralExpression) => l.Token.ValueText,
         InterpolatedStringExpressionSyntax i => string.Concat(i.Contents.Select(c => c switch
@@ -43,8 +45,8 @@ public static class SyntaxHelpers
             _ => "",
         })),
         BinaryExpressionSyntax b when b.IsKind(SyntaxKind.AddExpression) =>
-            (StringValue(b.Left) ?? "{}") + (StringValue(b.Right) ?? "{}"),
-        IdentifierNameSyntax or MemberAccessExpressionSyntax => ConstValue(e),
+            (StringValue(b.Left, depth + 1) ?? "{}") + (StringValue(b.Right, depth + 1) ?? "{}"),
+        IdentifierNameSyntax or MemberAccessExpressionSyntax => ConstValue(e, depth),
         _ => null,
     };
 
@@ -56,7 +58,7 @@ public static class SyntaxHelpers
     };
 
     /// <summary>Resolves `Name` or `Type.Name` to a const string declared in the same syntax tree.</summary>
-    private static string? ConstValue(ExpressionSyntax e)
+    private static string? ConstValue(ExpressionSyntax e, int depth)
     {
         var name = e switch
         {
@@ -69,6 +71,6 @@ public static class SyntaxHelpers
             .FirstOrDefault(v => v.Identifier.Text == name
                                  && v.Parent?.Parent is FieldDeclarationSyntax f
                                  && f.Modifiers.Any(SyntaxKind.ConstKeyword));
-        return declarator?.Initializer?.Value is { } init && !ReferenceEquals(init, e) ? StringValue(init) : null;
+        return declarator?.Initializer?.Value is { } init && !ReferenceEquals(init, e) ? StringValue(init, depth + 1) : null;
     }
 }

@@ -26,6 +26,8 @@ internal static class EndpointParameters
             var attrs = Attrs(p).Select(AttrName).ToList();
             if (attrs.Contains("FromServices") || Skipped.Contains(type.TrimEnd('?'))) continue;
 
+            if (IsDiService(type, attrs)) continue;
+
             var name = p.Identifier.Text;
             var source = attrs.Select(a => BindingAttrs.GetValueOrDefault(a)).FirstOrDefault(s => s is not null)
                          ?? (RouteHas(route, name) ? "route"
@@ -35,6 +37,21 @@ internal static class EndpointParameters
             list.Add(new EndpointParameter(name, source, type, required, p.Default?.Value.ToString()));
         }
         return list;
+    }
+
+    private static readonly HashSet<string> NotServices =
+        ["IFormFile", "IFormFileCollection", "IEnumerable", "IList", "ICollection", "IReadOnlyList", "IReadOnlyCollection",
+         "IDictionary", "IReadOnlyDictionary", "ISet", "IAsyncEnumerable"];
+
+    /// <summary>An unattributed interface-typed parameter is a DI service, not request data.</summary>
+    private static bool IsDiService(string type, List<string> attrs)
+    {
+        if (attrs.Any(BindingAttrs.ContainsKey)) return false;
+        var t = type.TrimEnd('?');
+        var lt = t.IndexOf('<');
+        if (lt >= 0) t = t[..lt];
+        t = t[(t.LastIndexOf('.') + 1)..];
+        return t.Length > 1 && t[0] == 'I' && char.IsUpper(t[1]) && !NotServices.Contains(t);
     }
 
     private static bool RouteHas(string route, string name) =>

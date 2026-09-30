@@ -57,9 +57,7 @@ public sealed class ControllerEndpointFinder : IEndpointFinder
         var declared = attrs.Where(a => AttrName(a) == "ProducesResponseType").Select(a =>
         {
             var args = a.ArgumentList?.Arguments ?? default;
-            var status = args.Select(x => x.Expression).OfType<LiteralExpressionSyntax>()
-                .Where(l => l.IsKind(SyntaxKind.NumericLiteralExpression))
-                .Select(l => (int)l.Token.Value!).DefaultIfEmpty(200).First();
+            var status = args.Select(x => StatusOf(x.Expression)).FirstOrDefault(s => s is not null) ?? 200;
             var type = args.Select(x => x.Expression).OfType<TypeOfExpressionSyntax>().Select(t => TypeName(t.Type)).FirstOrDefault()
                        ?? (a.Name as GenericNameSyntax)?.TypeArgumentList.Arguments.Select(TypeName).FirstOrDefault()
                        ?? "";
@@ -68,8 +66,23 @@ public sealed class ControllerEndpointFinder : IEndpointFinder
         if (declared.Count > 0) return declared;
 
         var ret = TypeName(m.ReturnType);
-        return ret is "void" or "Task" or "ValueTask" or "IActionResult" or "Task<IActionResult>" or "ActionResult"
+        return ret is "void" or "Task" or "ValueTask" or "IActionResult" or "Task<IActionResult>" or "ValueTask<IActionResult>"
+            or "ActionResult" or "ValueTask<ActionResult>" or "ValueTask<IResult>"
             or "Task<ActionResult>" or "IResult" or "Task<IResult>"
             ? [] : [new ResponseType(200, ret)];
+    }
+
+    /// <summary>Numeric literal, or a member/identifier like StatusCodes.Status404NotFound.</summary>
+    private static int? StatusOf(ExpressionSyntax e)
+    {
+        if (e is LiteralExpressionSyntax l && l.IsKind(SyntaxKind.NumericLiteralExpression) && l.Token.Value is int n) return n;
+        var name = e switch
+        {
+            MemberAccessExpressionSyntax m => m.Name.Identifier.Text,
+            IdentifierNameSyntax id => id.Identifier.Text,
+            _ => null,
+        };
+        var match = name is null ? null : System.Text.RegularExpressions.Regex.Match(name, @"^Status(\d{3})");
+        return match is { Success: true } ? int.Parse(match.Groups[1].Value) : null;
     }
 }

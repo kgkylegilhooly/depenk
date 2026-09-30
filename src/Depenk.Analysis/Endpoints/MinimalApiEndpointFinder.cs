@@ -42,7 +42,7 @@ public sealed class MinimalApiEndpointFinder : IEndpointFinder
         }
     }
 
-    /// <summary>Resolves the receiver to a MapGroup prefix: chained calls, or a local assigned from MapGroup.</summary>
+    /// <summary>Resolves the receiver to a MapGroup prefix: chained calls, fluent wrappers, or a local assigned from MapGroup.</summary>
     private static string? GroupPrefix(ExpressionSyntax receiver, SyntaxNode context, int depth = 0)
     {
         if (depth > 10) return null;
@@ -52,14 +52,29 @@ public sealed class MinimalApiEndpointFinder : IEndpointFinder
                 var own = g.ArgumentList.Arguments.Count > 0 ? StringValue(g.ArgumentList.Arguments[0].Expression) : null;
                 var outer = GroupPrefix(gm.Expression, context, depth + 1);
                 return RouteNormalizer.Combine(outer, own is null ? null : own.TrimStart('/')).TrimStart('/');
+            case InvocationExpressionSyntax { Expression: MemberAccessExpressionSyntax wrapper }:
+                // WithTags(...), RequireAuthorization(), WithOpenApi(), ... keep the same group
+                return GroupPrefix(wrapper.Expression, context, depth + 1);
             case IdentifierNameSyntax id:
-                var scope = context.Ancestors().FirstOrDefault(a => a is BlockSyntax or CompilationUnitSyntax) ?? context.SyntaxTree.GetRoot();
-                var decl = scope.DescendantNodes().OfType<VariableDeclaratorSyntax>()
-                    .FirstOrDefault(v => v.Identifier.Text == id.Identifier.Text);
+                var decl = FindLocal(id.Identifier.Text, context);
                 return decl?.Initializer?.Value is { } init ? GroupPrefix(init, decl, depth + 1) : null;
             default:
                 return null;
         }
+    }
+
+    /// <summary>Nearest enclosing scope wins; only declarations before the use site count.</summary>
+    private static VariableDeclaratorSyntax? FindLocal(string name, SyntaxNode use)
+    {
+        foreach (var scope in use.Ancestors().Where(a => a is BlockSyntax or CompilationUnitSyntax))
+        {
+            var found = scope.DescendantNodes().OfType<VariableDeclaratorSyntax>()
+                .Where(v => v.Identifier.Text == name && v.SpanStart < use.SpanStart
+                            && v.Ancestors().FirstOrDefault(a => a is BlockSyntax or CompilationUnitSyntax) == scope)
+                .LastOrDefault();
+            if (found is not null) return found;
+        }
+        return null;
     }
 
     private static string EnclosingTypeName(SyntaxNode n, SourceDoc doc) =>
