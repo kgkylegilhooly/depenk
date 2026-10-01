@@ -8,5 +8,11 @@ public static class DiagnosticKinds
         AmbiguousRoute = "ambiguousRoute", AmbiguousProducer = "ambiguousProducer",
         UnresolvedVersion = "unresolvedVersion", Cycle = "cycle", UnusedEndpoint = "unusedEndpoint",
         UnusedModel = "unusedModel", UnusedClientMethod = "unusedClientMethod", AmbiguousCallSite = "ambiguousCallSite", ParseError = "parseError",
-        DuplicateProjectName = "duplicateProjectName", AmbiguousModel = "ambiguousModel";
+        DuplicateProjectName = "duplicateProjectName", AmbiguousModel = "ambiguousModel",
+        DuplicateRepoName = "duplicateRepoName";
+}
+
+public static class Severities
+{
+    public const string Info = "info", Warning = "warning", Error = "error";
 }

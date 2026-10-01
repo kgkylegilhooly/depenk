@@ -11,7 +11,7 @@ public static class ClientEndpointLinker
         {
             if (cm.Verb is null || cm.NormalizedRoute is null)
             {
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, "info", [cm.Id],
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, Severities.Info, [cm.Id],
                     $"{cm.Id}: no HTTP call detected"));
                 continue;
             }
@@ -26,7 +26,7 @@ public static class ClientEndpointLinker
             {
                 foreach (var ep in exact)
                     graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, ep.Id, Confidence.Low) { Strategy = cm.Strategy });
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousRoute, "warning", [cm.Id, .. exact.Select(e => e.Id)],
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousRoute, Severities.Warning, [cm.Id, .. exact.Select(e => e.Id)],
                     $"{cm.Id} ({cm.Verb} {cm.Route}) matches {exact.Count} endpoints"));
             }
             else
@@ -35,7 +35,7 @@ public static class ClientEndpointLinker
                 if (suffix.Count == 1)
                     graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, suffix[0].Id, Confidence.Low) { Strategy = cm.Strategy + "+suffix" });
                 else
-                    graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, "info", [cm.Id],
+                    graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, Severities.Info, [cm.Id],
                         $"{cm.Id}: no endpoint in repo '{cm.Repo}' matches {cm.Verb} {cm.Route}"));
             }
         }

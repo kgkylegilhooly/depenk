@@ -112,7 +112,7 @@ public sealed class ScanOrchestrator
             try { result.AddRange(PackageGraphBuilder.LoadProjects(workspace, [repo], config, g)); }
             catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
             {
-                ParseError(g, workspace, repo.Name, "warning", $"{PathUtil.Rel(workspace, repo.AbsolutePath)}: {ex.Message}");
+                ParseError(g, workspace, repo.Name, Severities.Warning, $"{PathUtil.Rel(workspace, repo.AbsolutePath)}: {ex.Message}");
             }
         }
         return result;
@@ -124,11 +124,11 @@ public sealed class ScanOrchestrator
         try
         {
             set = SourceSet.Load(workspace, p.Repo.Name, p.Id, p.File.Name, p.Directory,
-                (rel, ex) => ParseError(g, workspace, p.Repo.Name, "info", $"{rel}: {ex.Message}"), cache);
+                (rel, ex) => ParseError(g, workspace, p.Repo.Name, Severities.Info, $"{rel}: {ex.Message}"), cache);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
-            ParseError(g, workspace, p.Repo.Name, "warning", $"{PathUtil.Rel(workspace, p.Directory)}: {ex.Message}");
+            ParseError(g, workspace, p.Repo.Name, Severities.Warning, $"{PathUtil.Rel(workspace, p.Directory)}: {ex.Message}");
             return new SourceSet(p.Repo.Name, p.Id, p.File.Name, []);
         }
         var nested = all.Where(o => o != p && IsUnder(o.Directory, p.Directory))
@@ -138,7 +138,7 @@ public sealed class ScanOrchestrator
         {
             var err = doc.Tree.GetDiagnostics().FirstOrDefault(d => d.Severity == DiagnosticSeverity.Error);
             if (err is not null)
-                ParseError(g, workspace, p.Repo.Name, "info",
+                ParseError(g, workspace, p.Repo.Name, Severities.Info,
                     $"{doc.RelativePath}: line {err.Location.GetLineSpan().StartLinePosition.Line + 1}: {err.GetMessage()}");
         }
         return new SourceSet(set.Repo, set.ProjectId, set.ProjectName, docs);

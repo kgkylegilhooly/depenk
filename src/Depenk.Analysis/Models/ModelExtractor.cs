@@ -43,7 +43,7 @@ public sealed class ModelExtractor(
                 if (ambiguityReported.Add((tr.Name, fromProjectId)))
                 {
                     var ids = candidates.Select(c => Ids.Model(c.Source.ProjectName, c.FullName)).ToList();
-                    graph.Diagnostics.Add(new Depenk.Core.Model.Diagnostic(DiagnosticKinds.AmbiguousModel, "info", ids,
+                    graph.Diagnostics.Add(new Depenk.Core.Model.Diagnostic(DiagnosticKinds.AmbiguousModel, Severities.Info, ids,
                         $"Type '{tr.Name}' used from {fromProjectId} matches {ids.Count} declarations: {string.Join(", ", ids)}; using {ids[0]}."));
                 }
             }
@@ -101,7 +101,7 @@ public sealed class ModelExtractor(
         }
 
         foreach (var decl in _index.All.Where(d => contractProjectIds.Contains(d.Source.ProjectId)
-                                                  && clientTypes?.Contains((d.Source.ProjectId, d.FullName.Split('.')[^1])) != true
+                                                  && clientTypes?.Contains((d.Source.ProjectId, d.Node.Identifier.Text)) != true
                                                   && d.Parts.Any(p => p.Node.Modifiers.Any(SyntaxKind.PublicKeyword))))
             EnsureDecl(decl, 1);
     }

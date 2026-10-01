@@ -174,4 +174,20 @@ public class PackageGraphBuilderTests
         Assert.Contains("r/a/Api/Api.csproj", diag.Message);
         Assert.Contains("r/b/Api/Api.csproj", diag.Message);
     }
+
+    [Fact]
+    public void ThirdDuplicateProjectName_DiagnosticNamesActualId()
+    {
+        using var ws = new TempWorkspace().Repo("r")
+            .File("r/a/Api/Api.csproj", Csproj("Microsoft.NET.Sdk"))
+            .File("r/b/Api/Api.csproj", Csproj("Microsoft.NET.Sdk"))
+            .File("r/c/Api/Api.csproj", Csproj("Microsoft.NET.Sdk"));
+        var g = new DepGraph();
+        var projects = PackageGraphBuilder.LoadProjects(ws.Root, RepoDiscovery.Discover(ws.Root, new DepenkConfig()), new DepenkConfig(), g);
+
+        Assert.Equal(["proj:r/Api", "proj:r/Api#2", "proj:r/Api#3"], projects.Select(p => p.Id));
+        var third = g.Diagnostics.Single(d => d.Kind == DiagnosticKinds.DuplicateProjectName && d.Message.Contains("r/c/Api/Api.csproj"));
+        Assert.Equal(["proj:r/Api", "proj:r/Api#3"], third.NodeIds);
+        Assert.EndsWith("renamed to proj:r/Api#3.", third.Message);
+    }
 }

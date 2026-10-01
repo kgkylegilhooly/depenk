@@ -2,6 +2,7 @@ using System.CommandLine;
 using System.Diagnostics;
 using Depenk.Analysis;
 using Depenk.Core;
+using Depenk.Core.Model;
 using Depenk.Scanning.Config;
 
 var workspaceOption = new Option<DirectoryInfo>(
@@ -28,7 +29,7 @@ scan.SetHandler(ctx =>
         var path = ScanOrchestrator.GraphPath(ws);
         GraphJson.Save(graph, path);
         WorkspaceManifest.Save(ws, manifest);
-        var warnings = graph.Diagnostics.Count(d => d.Severity == "warning");
+        var warnings = graph.Diagnostics.Count(d => d.Severity == Severities.Warning);
         Console.WriteLine(
             $"Scanned {graph.Repos.Count} repos, {graph.Projects.Count} projects: " +
             $"{graph.Endpoints.Count} endpoints, {graph.ClientMethods.Count} client methods, " +

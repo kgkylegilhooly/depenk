@@ -98,4 +98,11 @@ public class FixtureScanTests
 
     [Fact]
     public Task Snapshot() => Verify(ScanFixture().Json, extension: "json").UseDirectory("Snapshots");
+
+    [Fact]
+    public void Graph_HasIntegrity()
+    {
+        var (g, _, _) = ScanFixture();
+        GraphIntegrity.AssertValid(g);
+    }
 }

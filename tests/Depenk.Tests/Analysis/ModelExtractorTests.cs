@@ -244,4 +244,18 @@ public class ModelExtractorTests
         Assert.Equal(["B"], M(g, "A.Pt").Fields.Select(f => f.Name));
         Assert.Equal(["Q"], M(g, "A.Rec").Fields.Select(f => f.Name));
     }
+
+    [Fact]
+    public void GenericClientTypes_AreNotSeededAsModels()
+    {
+        var client = Src.SetFor("r", "C.Client", ("r/C/Client.cs", """
+            namespace C;
+            public class ApiClient<T> { public int Count { get; set; } }
+            public class PlainDto { public int X { get; set; } }
+            """));
+        var g = new DepGraph();
+        new ModelExtractor([client], _ => [])
+            .Extract(g, new HashSet<string> { "proj:r/C.Client" }, new HashSet<(string, string)> { ("proj:r/C.Client", "ApiClient") });
+        Assert.Equal(["C.PlainDto"], g.Models.Select(m => m.FullName));
+    }
 }

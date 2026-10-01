@@ -25,7 +25,7 @@ public static class GraphDiagnostics
             var latest = produced ?? refs.Select(r => r.Version!).OrderBy(v => v, VersionComparer.Instance).Last();
             var behind = refs.Where(r => r.Version != latest).OrderBy(r => r.From, StringComparer.Ordinal).ToList();
             if (behind.Count == 0) continue;
-            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.VersionDrift, "warning",
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.VersionDrift, Severities.Warning,
                 [pkg.Id, .. behind.Select(b => b.From)],
                 $"{pkg.PackageId}: latest {latest}; behind: {string.Join(", ", behind.Select(b => $"{b.From} ({b.Version})"))}"));
         }
@@ -66,7 +66,7 @@ public static class GraphDiagnostics
         {
             var ids = scc.Order(StringComparer.Ordinal).ToList();
             var names = ids.Select(i => i["repo:".Length..]).ToList();
-            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.Cycle, "warning", ids,
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.Cycle, Severities.Warning, ids,
                 $"Circular dependency: {string.Join(" → ", names)} → {names[0]}"));
         }
     }
@@ -76,14 +76,14 @@ public static class GraphDiagnostics
         var targeted = g.EdgesOf(EdgeKind.Targets).Select(e => e.To).ToHashSet();
         var reposWithClients = g.ClientMethods.Select(c => c.Repo).ToHashSet();
         foreach (var ep in g.Endpoints.Where(e => reposWithClients.Contains(e.Repo) && !targeted.Contains(e.Id)))
-            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedEndpoint, "info", [ep.Id],
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedEndpoint, Severities.Info, [ep.Id],
                 $"{ep.Verb} {ep.Route} ({ep.Handler}) is not called by any client method"));
 
         var invoked = g.EdgesOf(EdgeKind.Invokes).Select(e => e.To).ToHashSet();
         // an interface method and its implementation share (project, method name): either being invoked counts for both
         var invokedNames = g.ClientMethods.Where(c => invoked.Contains(c.Id)).Select(c => (c.ProjectId, c.MethodName)).ToHashSet();
         foreach (var cm in g.ClientMethods.Where(c => c.Verb is not null && !invokedNames.Contains((c.ProjectId, c.MethodName))))
-            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedClientMethod, "info", [cm.Id],
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedClientMethod, Severities.Info, [cm.Id],
                 $"{cm.TypeName}.{cm.MethodName} has no call sites in the workspace"));
 
         var clientProjects = g.Projects.Where(p => p.Kind == ProjectKind.Client).Select(p => p.Id).ToHashSet();
@@ -91,7 +91,7 @@ public static class GraphDiagnostics
             .Select(e => e.To).ToHashSet();
         foreach (var m in g.Models.Where(m => m.ProjectId is not null && clientProjects.Contains(m.ProjectId)
                                               && !referencedModels.Contains(m.Id)))
-            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedModel, "info", [m.Id],
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnusedModel, Severities.Info, [m.Id],
                 $"{m.FullName} is not used by any endpoint or model"));
     }
 

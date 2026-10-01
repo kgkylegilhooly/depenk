@@ -48,7 +48,7 @@ public static class CallSiteFinder
             else if (ambiguous && site.Confidence != Confidence.Low)
                 sites[id] = site with { Confidence = Confidence.Low };
             if (ambiguous && diagnosed.Add(id))
-                diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousCallSite, "info", [id, .. matches.Select(m => m.Id)],
+                diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousCallSite, Severities.Info, [id, .. matches.Select(m => m.Id)],
                     $"Call to {Normalize(declared)}.{name} could target several client packages: " +
                     string.Join(", ", matches.Select(m => ProjectName(m))) + "."));
             foreach (var cm in matches)

@@ -19,7 +19,7 @@ public static class PackageGraphBuilder
     {
         var result = new List<ScannedProject>();
         var usedIds = new Dictionary<string, (ScannedProject Project, string RelPath)>(StringComparer.Ordinal);
-        var duplicates = new List<(string Id, string RelPath, string OtherRelPath)>();
+        var duplicates = new List<(string BaseId, string Id, string RelPath, string OtherRelPath)>();
 
         foreach (var repo in repos)
         foreach (var csproj in PathUtil.EnumerateFiles(repo.AbsolutePath, "*.csproj").Order(StringComparer.Ordinal))
@@ -48,22 +48,21 @@ public static class PackageGraphBuilder
                 if (id != baseId)
                 {
                     var (_, otherRel) = usedIds[baseId];
-                    duplicates.Add((baseId, rel, otherRel));
+                    duplicates.Add((baseId, id, rel, otherRel));
                 }
             }
             catch (Exception ex) when (ex is ProjectParseException or IOException or UnauthorizedAccessException)
             {
                 var rel = PathUtil.Rel(workspace, csproj);
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, "warning", [Ids.Repo(repo.Name)],
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, Severities.Warning, [Ids.Repo(repo.Name)],
                     $"{rel}: {(ex.InnerException ?? ex).Message}"));
             }
         }
 
         // Add duplicate diagnostics
-        foreach (var (baseId, rel, otherRel) in duplicates)
+        foreach (var (baseId, suffixedId, rel, otherRel) in duplicates)
         {
-            var suffixedId = baseId + "#2";
-            graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.DuplicateProjectName, "info",
+            graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.DuplicateProjectName, Severities.Info,
                 [baseId, suffixedId],
                 $"Duplicate project name: {otherRel} and {rel} both produce project ID {baseId}; renamed to {suffixedId}."));
         }
@@ -116,7 +115,7 @@ public static class PackageGraphBuilder
             foreach (var prod in producers)
                 graph.Edges.Add(new Edge(EdgeKind.Produces, prod.Id, pkgId, confidence) { Version = prod.File.Version });
             if (producers.Count > 1)
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousProducer, "warning",
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousProducer, Severities.Warning,
                     [pkgId, .. producers.Select(p => p.Id)],
                     $"Package {canonical} is produced by {producers.Count} projects: {string.Join(", ", producers.Select(p => p.Id))}. Pin one with packages.producers in depenk.yml."));
         }
@@ -128,7 +127,7 @@ public static class PackageGraphBuilder
             var canonical = canonicalPackageId.TryGetValue(r.Id, out var c) ? c : r.Id;
             graph.Edges.Add(new Edge(EdgeKind.References, p.Id, Ids.Package(canonical), Confidence.Certain) { Version = r.Version });
             if (ProjectFile.IsUnresolved(r.Version))
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedVersion, "info", [p.Id, Ids.Package(canonical)],
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedVersion, Severities.Info, [p.Id, Ids.Package(canonical)],
                     $"{p.Id} references {r.Id} with a version that could not be resolved: {r.Version}"));
 
             foreach (var producerRepo in producerRepoByPackage.GetValueOrDefault(canonical, []))
