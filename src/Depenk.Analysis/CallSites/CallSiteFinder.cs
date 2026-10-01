@@ -1,0 +1,105 @@
+using Depenk.Core;
+using Depenk.Core.Model;
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using static Depenk.Analysis.SyntaxHelpers;
+
+namespace Depenk.Analysis.CallSites;
+
+public sealed record CallSiteScan(List<CallSiteNode> CallSites, List<Edge> Invokes);
+
+public static class CallSiteFinder
+{
+    public static CallSiteScan Find(SourceSet consumer, IReadOnlyList<ClientMethodNode> reachableClientMethods)
+    {
+        var sites = new Dictionary<string, CallSiteNode>();
+        var edges = new List<Edge>();
+        if (reachableClientMethods.Count == 0) return new CallSiteScan([], []);
+        var byKey = reachableClientMethods.ToLookup(m => (m.TypeName, m.MethodName));
+
+        foreach (var (doc, inv) in consumer.All<InvocationExpressionSyntax>())
+        {
+            var (receiver, name) = inv.Expression switch
+            {
+                MemberAccessExpressionSyntax m => (m.Expression, m.Name.Identifier.Text),
+                MemberBindingExpressionSyntax b
+                    when inv.Ancestors().OfType<ConditionalAccessExpressionSyntax>().FirstOrDefault() is { } ca =>
+                    (ca.Expression, b.Name.Identifier.Text),
+                _ => ((ExpressionSyntax?)null, ""),
+            };
+            if (receiver is null) continue;
+            if (DeclaredTypes.Of(receiver, inv) is not { } declared) continue;
+            var matches = byKey[(Normalize(declared), name)].ToList();
+            if (matches.Count == 0) continue;
+            if (matches.Count > 1) matches = Disambiguate(matches, declared, doc);
+
+            var (typeName, member) = Containing(inv);
+            var line = Line(inv);
+            var id = Ids.CallSite(consumer.Repo, consumer.ProjectName, typeName, member, line);
+            if (!sites.ContainsKey(id))
+                sites[id] = new CallSiteNode(id, consumer.Repo, consumer.ProjectId, $"{typeName}.{member}",
+                    Confidence.Medium, new SourceLocation(doc.RelativePath, line));
+            foreach (var cm in matches)
+            {
+                var edge = new Edge(EdgeKind.Invokes, id, cm.Id, Confidence.Medium);
+                if (!edges.Contains(edge)) edges.Add(edge);
+            }
+        }
+        return new CallSiteScan([.. sites.Values], edges);
+    }
+
+    /// <summary>
+    /// Same simple type name in several reachable packages: keep the candidates whose project name relates to the
+    /// explicit qualifier (e.g. "A.Client.R0Client") or, failing that, to the file's using directives.
+    /// Falls back to all candidates when nothing relates.
+    /// </summary>
+    private static List<ClientMethodNode> Disambiguate(List<ClientMethodNode> matches, string declared, SourceDoc doc)
+    {
+        var t = declared.TrimEnd('?');
+        var lt = t.IndexOf('<');
+        if (lt >= 0) t = t[..lt];
+        var dot = t.LastIndexOf('.');
+        var hints = dot > 0
+            ? [t[..dot]]
+            : doc.Tree.GetRoot().DescendantNodes().OfType<UsingDirectiveSyntax>()
+                .Select(u => u.Name?.ToString()).OfType<string>().ToList();
+
+        static bool Related(string ns, string project) =>
+            ns == project || ns.EndsWith("." + project, StringComparison.Ordinal) || project.EndsWith("." + ns, StringComparison.Ordinal);
+
+        var filtered = matches.Where(m => hints.Any(h => Related(h, ProjectName(m)))).ToList();
+        return filtered.Count > 0 ? filtered : matches;
+    }
+
+    /// <summary>"proj:r/Api#2" → "Api".</summary>
+    private static string ProjectName(ClientMethodNode m)
+    {
+        var name = m.ProjectId[(m.ProjectId.IndexOf('/') + 1)..];
+        var hash = name.LastIndexOf('#');
+        return hash >= 0 && name[(hash + 1)..].All(char.IsDigit) ? name[..hash] : name;
+    }
+
+    /// <summary>"Acme.Orders.IOrdersClient?" → "IOrdersClient"; "Wrapper&lt;T&gt;" → "Wrapper".</summary>
+    private static string Normalize(string typeText)
+    {
+        var t = typeText.TrimEnd('?');
+        var lt = t.IndexOf('<');
+        if (lt >= 0) t = t[..lt];
+        var dot = t.LastIndexOf('.');
+        return dot >= 0 ? t[(dot + 1)..] : t;
+    }
+
+    private static (string Type, string Member) Containing(SyntaxNode n)
+    {
+        var type = n.Ancestors().OfType<BaseTypeDeclarationSyntax>().FirstOrDefault()?.Identifier.Text ?? "Program";
+        var member = n.Ancestors().Select(a => a switch
+        {
+            LocalFunctionStatementSyntax lf => lf.Identifier.Text,
+            MethodDeclarationSyntax m => m.Identifier.Text,
+            ConstructorDeclarationSyntax => ".ctor",
+            PropertyDeclarationSyntax p => p.Identifier.Text,
+            _ => null,
+        }).FirstOrDefault(s => s is not null) ?? "<top-level>";
+        return (type, member);
+    }
+}
