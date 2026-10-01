@@ -129,4 +129,42 @@ public class ScanRobustnessTests
         Assert.Equal(["ep:inner:GET:/api/inner/{id}", "ep:outer:GET:/api/outer/{id}"], g.Endpoints.Select(e => e.Id));
         GraphIntegrity.AssertValid(g);
     }
+
+    // ---- finding 3: model ids across same-named projects ----
+
+    [Fact]
+    public void SameNamedProjectsInDifferentRepos_GetDistinctModelIds_EdgesPointAtOwnModel()
+    {
+        static string Ctl(string route) => $$"""
+            using Microsoft.AspNetCore.Mvc;
+            namespace Api.Controllers;
+            [ApiController, Route("{{route}}")]
+            public class ThingsController : ControllerBase
+            {
+                [HttpGet] public Api.Models.ErrorDto Get() => null!;
+            }
+            """;
+        using var ws = new TempWorkspace()
+            .File("orders/Api/Api.csproj", WebCsproj)
+            .File("orders/Api/C.cs", Ctl("api/orders"))
+            .File("orders/Api/E.cs", "namespace Api.Models; public class ErrorDto { public string OrderCode { get; set; } = \"\"; }")
+            .File("billing/Api/Api.csproj", WebCsproj)
+            .File("billing/Api/C.cs", Ctl("api/billing"))
+            .File("billing/Api/E.cs", "namespace Api.Models; public class ErrorDto { public int BillingCode { get; set; } }")
+            .Repo("orders").Repo("billing");
+
+        var g = new ScanOrchestrator().Scan(ws.Root);
+
+        var dtos = g.Models.Where(m => m.FullName == "Api.Models.ErrorDto").ToList();
+        Assert.Equal(["model:Api:Api.Models.ErrorDto", "model:Api:Api.Models.ErrorDto#2"], dtos.Select(m => m.Id));
+        foreach (var repo in new[] { "orders", "billing" })
+        {
+            var ret = g.EdgesOf(EdgeKind.Returns).Single(e => e.From == $"ep:{repo}:GET:/api/{repo}");
+            var model = g.Models.Single(m => m.Id == ret.To);
+            Assert.Equal((repo, $"proj:{repo}/Api"), (model.Repo, model.ProjectId));
+            Assert.Equal(Confidence.High, ret.Confidence);
+        }
+        Assert.DoesNotContain(g.Diagnostics, d => d.Kind == DiagnosticKinds.AmbiguousModel);
+        GraphIntegrity.AssertValid(g);
+    }
 }

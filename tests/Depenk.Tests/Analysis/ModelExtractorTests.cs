@@ -132,11 +132,32 @@ public class ModelExtractorTests
         var s1 = Src.SetFor("r", "S1", ("r/S1/O.cs", "namespace A.One; public class OrderDto { public int X {get;set;} }"));
         var s2 = Src.SetFor("r", "S2", ("r/S2/O.cs", "namespace A.Two; public class OrderDto { public int Y {get;set;} }"));
         var g = RunSets(6, [Ctl], s1, s2);
-        var ret = Assert.Single(g.EdgesOf(EdgeKind.Returns));
-        Assert.Equal(Confidence.Low, ret.Confidence);
-        Assert.Equal("model:S1:A.One.OrderDto", ret.To);
+        // every candidate is kept: one Low edge and one node per candidate
+        var returns = g.EdgesOf(EdgeKind.Returns).ToList();
+        Assert.Equal(["model:S1:A.One.OrderDto", "model:S2:A.Two.OrderDto"], returns.Select(e => e.To));
+        Assert.All(returns, e => Assert.Equal(Confidence.Low, e.Confidence));
         var d = Assert.Single(g.Diagnostics, x => x.Kind == DiagnosticKinds.AmbiguousModel);
         Assert.Equal(["model:S1:A.One.OrderDto", "model:S2:A.Two.OrderDto"], d.NodeIds);
+        Assert.All(d.NodeIds, id => Assert.Contains(g.Models, m => m.Id == id));
+        GraphIntegrity.AssertValid(g);
+    }
+
+    [Fact]
+    public void AmbiguousFieldType_LinksEveryCandidate()
+    {
+        var s1 = Src.SetFor("r", "S1", ("r/S1/O.cs", "namespace A.One; public class OrderDto { public Line L {get;set;} } public class Line { public int X {get;set;} }"));
+        var s2 = Src.SetFor("r", "S2", ("r/S2/L.cs", "namespace A.Two; public class Line { public int Y {get;set;} }"));
+        // OrderDto lives in S1 only; Line resolves from S1 (same project) so it is NOT ambiguous
+        var g = RunSets(6, [Ctl], s1, s2);
+        Assert.Equal(Confidence.High, g.EdgesOf(EdgeKind.FieldOf).Single(e => e.FieldName == "L").Confidence);
+
+        // from a third project neither is local: both candidates are kept
+        var s3 = Src.SetFor("r", "S3", ("r/S3/W.cs", "namespace A.Three; public class OrderDto { public Line L {get;set;} }"));
+        var g2 = RunSets(6, [Ctl], s3, s2, Src.SetFor("r", "S4", ("r/S4/L.cs", "namespace A.Four; public class Line { public int Z {get;set;} }")));
+        var fields = g2.EdgesOf(EdgeKind.FieldOf).Where(e => e.FieldName == "L").ToList();
+        Assert.Equal(["model:S2:A.Two.Line", "model:S4:A.Four.Line"], fields.Select(e => e.To).Order());
+        Assert.All(fields, e => Assert.Equal(Confidence.Low, e.Confidence));
+        GraphIntegrity.AssertValid(g2);
     }
 
     [Fact]

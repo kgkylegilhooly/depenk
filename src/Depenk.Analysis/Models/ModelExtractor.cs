@@ -13,16 +13,34 @@ public sealed class ModelExtractor(
     private readonly TypeIndex _index = new(sources);
 
     /// <param name="clientTypes">(projectId, simple type name) of types that own client methods; they are never seeded as contract models.</param>
+    /// <param name="onError">Called with the project id when analysing one endpoint or contract type throws; extraction continues.</param>
     public void Extract(DepGraph graph, IReadOnlySet<string> contractProjectIds,
-        IReadOnlySet<(string ProjectId, string TypeName)>? clientTypes = null)
+        IReadOnlySet<(string ProjectId, string TypeName)>? clientTypes = null, Action<string, Exception>? onError = null)
     {
-        var models = graph.Models.ToDictionary(m => m.Id);
+        var models = new Dictionary<string, ModelNode>(StringComparer.Ordinal);
+        foreach (var m in graph.Models) models.TryAdd(m.Id, m);
+        // model id -> (project, full name) of the declaration that owns it; same-named projects in different repos
+        // share ProjectName, so a second declaration with the same base id gets "#N".
+        var owners = models.ToDictionary(kv => kv.Key, kv => (kv.Value.ProjectId, kv.Value.FullName), StringComparer.Ordinal);
+        var declIds = new Dictionary<TypeDecl, string>(ReferenceEqualityComparer.Instance);
         var edges = new HashSet<Edge>(graph.Edges);
         var expandedAt = new Dictionary<string, int>();          // model id -> shallowest depth it was expanded from
         var ambiguityReported = new HashSet<(string, string)>();
         void AddEdge(Edge e) { if (edges.Add(e)) graph.Edges.Add(e); }
 
-        (string Id, Confidence Confidence) Ensure(TypeRef tr, string fromProjectId, int depth)
+        string IdOf(TypeDecl decl)
+        {
+            if (declIds.TryGetValue(decl, out var known)) return known;
+            var baseId = Ids.Model(decl.Source.ProjectName, decl.FullName);
+            var id = baseId;
+            for (var n = 2; owners.TryGetValue(id, out var o) && (o.ProjectId != decl.Source.ProjectId || o.FullName != decl.FullName); n++)
+                id = $"{baseId}#{n}";
+            owners[id] = (decl.Source.ProjectId, decl.FullName);
+            return declIds[decl] = id;
+        }
+
+        // Every candidate becomes a node; an ambiguous reference links to each of them with Low confidence.
+        List<(string Id, Confidence Confidence)> Ensure(TypeRef tr, string fromProjectId, int depth)
         {
             var resolved = _index.ResolveWithCandidates(tr.Name, fromProjectId, referencedProjectIds(fromProjectId), tr.Arity);
             if (resolved is null)
@@ -33,26 +51,22 @@ public sealed class ModelExtractor(
                     models[opaqueId] = new ModelNode(opaqueId, "", null, tr.Name, ModelKind.Opaque, [], null, null);
                     graph.Models.Add(models[opaqueId]);
                 }
-                return (opaqueId, Confidence.High);
+                return [(opaqueId, Confidence.High)];
             }
             var (decl, candidates) = resolved.Value;
-            var confidence = Confidence.High;
-            if (candidates.Count > 1)
-            {
-                confidence = Confidence.Low;
-                if (ambiguityReported.Add((tr.Name, fromProjectId)))
-                {
-                    var ids = candidates.Select(c => Ids.Model(c.Source.ProjectName, c.FullName)).ToList();
-                    graph.Diagnostics.Add(new Depenk.Core.Model.Diagnostic(DiagnosticKinds.AmbiguousModel, Severities.Info, ids,
-                        $"Type '{tr.Name}' used from {fromProjectId} matches {ids.Count} declarations: {string.Join(", ", ids)}; using {ids[0]}."));
-                }
-            }
-            return (EnsureDecl(decl, depth), confidence);
+            if (candidates.Count <= 1) return [(EnsureDecl(decl, depth), Confidence.High)];
+
+            var ids = candidates.Select(c => EnsureDecl(c, depth)).ToList();
+            if (ambiguityReported.Add((tr.Name, fromProjectId)))
+                graph.Diagnostics.Add(new Depenk.Core.Model.Diagnostic(DiagnosticKinds.AmbiguousModel, Severities.Info, ids,
+                    $"Type '{tr.Name}' used from {fromProjectId} matches {ids.Count} declarations: {string.Join(", ", ids)}; " +
+                    "all are kept as low-confidence candidates."));
+            return ids.Select(id => (id, Confidence.Low)).ToList();
         }
 
         string EnsureDecl(TypeDecl decl, int depth)
         {
-            var id = Ids.Model(decl.Source.ProjectName, decl.FullName);
+            var id = IdOf(decl);
             List<ModelField> fields;
             if (models.TryGetValue(id, out var existing))
             {
@@ -78,32 +92,35 @@ public sealed class ModelExtractor(
             foreach (var child in TypeUnwrapper.Unwrap(f.TypeName))
             {
                 if (typeParams.Contains(child.Name)) continue;
-                var (childId, conf) = Ensure(child, decl.Source.ProjectId, depth + 1);
-                AddEdge(new Edge(EdgeKind.FieldOf, id, childId, conf) { FieldName = f.Name });
+                foreach (var (childId, conf) in Ensure(child, decl.Source.ProjectId, depth + 1))
+                    AddEdge(new Edge(EdgeKind.FieldOf, id, childId, conf) { FieldName = f.Name });
             }
             return id;
         }
 
         foreach (var ep in graph.Endpoints.ToList())
         {
-            foreach (var p in ep.Parameters)
-            foreach (var tr in TypeUnwrapper.Unwrap(p.TypeName))
+            try
             {
-                var (mid, conf) = Ensure(tr, ep.ProjectId, 1);
-                AddEdge(new Edge(EdgeKind.Accepts, ep.Id, mid, conf) { Source = p.Source });
+                foreach (var p in ep.Parameters)
+                foreach (var tr in TypeUnwrapper.Unwrap(p.TypeName))
+                foreach (var (mid, conf) in Ensure(tr, ep.ProjectId, 1))
+                    AddEdge(new Edge(EdgeKind.Accepts, ep.Id, mid, conf) { Source = p.Source });
+                foreach (var r in ep.Responses)
+                foreach (var tr in TypeUnwrapper.Unwrap(r.TypeName))
+                foreach (var (mid, conf) in Ensure(tr, ep.ProjectId, 1))
+                    AddEdge(new Edge(EdgeKind.Returns, ep.Id, mid, conf) { StatusCode = r.StatusCode });
             }
-            foreach (var r in ep.Responses)
-            foreach (var tr in TypeUnwrapper.Unwrap(r.TypeName))
-            {
-                var (mid, conf) = Ensure(tr, ep.ProjectId, 1);
-                AddEdge(new Edge(EdgeKind.Returns, ep.Id, mid, conf) { StatusCode = r.StatusCode });
-            }
+            catch (Exception ex) when (onError is not null) { onError(ep.ProjectId, ex); }
         }
 
         foreach (var decl in _index.All.Where(d => contractProjectIds.Contains(d.Source.ProjectId)
                                                   && clientTypes?.Contains((d.Source.ProjectId, d.Node.Identifier.Text)) != true
                                                   && d.Parts.Any(p => p.Node.Modifiers.Any(SyntaxKind.PublicKeyword))))
-            EnsureDecl(decl, 1);
+        {
+            try { EnsureDecl(decl, 1); }
+            catch (Exception ex) when (onError is not null) { onError(decl.Source.ProjectId, ex); }
+        }
     }
 
     private (ModelKind, List<ModelField>, List<string>?) Describe(TypeDecl decl)
