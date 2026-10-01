@@ -13,11 +13,11 @@ public sealed class SourceSet(string repo, string projectId, string projectName,
     public IReadOnlyList<SourceDoc> Docs { get; } = docs;
 
     public static SourceSet Load(string workspace, string repo, string projectId, string projectName, string projectDir,
-        Action<string, Exception> onError, ParseCache? cache = null)
+        Action<string, Exception> onError, ParseCache? cache = null, Action<string, Exception>? onDirectoryError = null)
     {
         cache ??= new ParseCache();
         var docs = new List<SourceDoc>();
-        foreach (var file in PathUtil.EnumerateFiles(projectDir, "*.cs").Order(StringComparer.Ordinal))
+        foreach (var file in PathUtil.EnumerateFiles(projectDir, "*.cs", onDirectoryError).Order(StringComparer.Ordinal))
         {
             var rel = PathUtil.Rel(workspace, file);
             try

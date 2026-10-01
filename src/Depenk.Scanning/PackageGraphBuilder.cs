@@ -15,47 +15,43 @@ public sealed class ScannedProject(DiscoveredRepo repo, ProjectFile file, string
 public static class PackageGraphBuilder
 {
     public static List<ScannedProject> LoadProjects(string workspace, IEnumerable<DiscoveredRepo> repos,
-        DepenkConfig config, DepGraph graph)
+        DepenkConfig config, DepGraph graph, IReadOnlyList<DiscoveredRepo>? allRepos = null)
     {
         var result = new List<ScannedProject>();
         var usedIds = new Dictionary<string, (ScannedProject Project, string RelPath)>(StringComparer.Ordinal);
         var duplicates = new List<(string BaseId, string Id, string RelPath, string OtherRelPath)>();
 
-        foreach (var repo in repos)
-        foreach (var csproj in PathUtil.EnumerateFiles(repo.AbsolutePath, "*.csproj").Order(StringComparer.Ordinal))
+        var repoList = repos.ToList();
+        foreach (var repo in repoList)
         {
-            if (Glob.Any(config.Projects.Ignore, Path.GetFileNameWithoutExtension(csproj))) continue;
-            try
-            {
-                var pf = ProjectParser.Parse(csproj, repo.AbsolutePath);
-                var baseId = Ids.Project(repo.Name, pf.Name);
-                var id = baseId;
-                var suffix = 2;
-
-                // Check for duplicate project IDs within the same repo
-                while (usedIds.ContainsKey(id))
-                {
-                    id = Ids.Project(repo.Name, pf.Name) + $"#{suffix}";
-                    suffix++;
-                }
-
-                var sp = new ScannedProject(repo, pf, id);
-                result.Add(sp);
-                var rel = PathUtil.Rel(workspace, csproj);
-                usedIds[id] = (sp, rel);
-
-                // Track for duplicate diagnostic
-                if (id != baseId)
-                {
-                    var (_, otherRel) = usedIds[baseId];
-                    duplicates.Add((baseId, id, rel, otherRel));
-                }
-            }
-            catch (Exception ex) when (ex is ProjectParseException or IOException or UnauthorizedAccessException)
-            {
-                var rel = PathUtil.Rel(workspace, csproj);
+            // A repo nested inside this one owns its own projects (innermost repo wins).
+            var nested = (allRepos ?? repoList).Where(o => o != repo && IsUnder(o.AbsolutePath, repo.AbsolutePath)).Select(o => o.AbsolutePath).ToList();
+            void SkippedDir(string dir, Exception ex) =>
                 graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, Severities.Warning, [Ids.Repo(repo.Name)],
-                    $"{rel}: {(ex.InnerException ?? ex).Message}"));
+                    PathUtil.StripWorkspace(workspace, $"{PathUtil.Rel(workspace, dir)}/: directory skipped: {ex.Message}")));
+            foreach (var csproj in PathUtil.EnumerateFiles(repo.AbsolutePath, "*.csproj", SkippedDir).Order(StringComparer.Ordinal))
+            {
+                if (nested.Any(n => IsUnder(csproj, n))) continue;
+                if (Glob.Any(config.Projects.Ignore, Path.GetFileNameWithoutExtension(csproj))) continue;
+                try
+                {
+                    var pf = ProjectParser.Parse(csproj, repo.AbsolutePath);
+                    var baseId = Ids.Project(repo.Name, pf.Name);
+                    var id = baseId;
+                    for (var suffix = 2; usedIds.ContainsKey(id); suffix++) id = $"{baseId}#{suffix}";
+
+                    var sp = new ScannedProject(repo, pf, id);
+                    result.Add(sp);
+                    var rel = PathUtil.Rel(workspace, csproj);
+                    usedIds[id] = (sp, rel);
+                    if (id != baseId) duplicates.Add((baseId, id, rel, usedIds[baseId].RelPath));
+                }
+                catch (Exception ex) when (ex is ProjectParseException or IOException or UnauthorizedAccessException)
+                {
+                    var rel = PathUtil.Rel(workspace, csproj);
+                    graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, Severities.Warning, [Ids.Repo(repo.Name)],
+                        PathUtil.StripWorkspace(workspace, $"{rel}: {(ex.InnerException ?? ex).Message}")));
+                }
             }
         }
 
@@ -69,6 +65,10 @@ public static class PackageGraphBuilder
 
         return result;
     }
+
+    private static bool IsUnder(string path, string parent) =>
+        path.Length > parent.Length
+        && path.StartsWith(parent.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     public static void Build(string workspace, IReadOnlyList<ScannedProject> projects,
         IReadOnlyDictionary<string, ProjectKind> kinds, DepenkConfig config, DepGraph graph)

@@ -25,10 +25,20 @@ public static class WorkspaceManifest
         {
             result[$"repo:{repo.Name}"] = repo.HeadSha ?? "";
             foreach (var pattern in Patterns)
-            foreach (var file in PathUtil.EnumerateFiles(repo.AbsolutePath, pattern))
-                result[PathUtil.Rel(workspace, file)] = ParseCache.HashText(File.ReadAllText(file));
+            foreach (var file in PathUtil.EnumerateFiles(repo.AbsolutePath, pattern,
+                         (dir, _) => result[PathUtil.Rel(workspace, dir) + "/"] = Unreadable))
+                result[PathUtil.Rel(workspace, file)] = TryHash(file);
         }
         return result;
+    }
+
+    private const string Unreadable = "unreadable";
+
+    // An unreadable file or directory is recorded, not fatal: the scan reports it as a parseError.
+    private static string TryHash(string file)
+    {
+        try { return ParseCache.HashText(File.ReadAllText(file)); }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException) { return Unreadable; }
     }
 
     public static void Save(string workspace, SortedDictionary<string, string> manifest)

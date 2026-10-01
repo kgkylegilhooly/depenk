@@ -33,13 +33,22 @@ public sealed class ScanOrchestrator
 
         var repos = RepoDiscovery.Discover(workspace, config);
         g.Repos.AddRange(repos.Select(r => new RepoNode(Ids.Repo(r.Name), r.Name, r.RelativePath, r.HeadSha, r.Dirty)));
+        foreach (var renamed in repos.Where(r => r.Name != r.BaseName))
+        {
+            var original = repos.First(r => r.Name == r.BaseName && r.Name.Equals(renamed.BaseName, StringComparison.OrdinalIgnoreCase));
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.DuplicateRepoName, Severities.Info,
+                [Ids.Repo(original.Name), Ids.Repo(renamed.Name)],
+                $"Duplicate repo name: {original.RelativePath} and {renamed.RelativePath} are both named '{renamed.BaseName}'; " +
+                $"{renamed.RelativePath} is scanned as '{renamed.Name}'."));
+        }
         var projects = LoadProjects(workspace, repos, config, g);
 
+        var repoDirs = repos.Select(r => r.AbsolutePath).ToList();
         var loaded = new (SourceSet Set, List<Diagnostic> Diags)[projects.Count];
         Parallel.For(0, projects.Count, i =>
         {
             var local = new DepGraph();
-            loaded[i] = (LoadSources(workspace, projects[i], projects, local, _cache), local.Diagnostics);
+            loaded[i] = (LoadSources(workspace, projects[i], projects, repoDirs, local, _cache), local.Diagnostics);
         });
         var sources = new Dictionary<string, SourceSet>();
         for (var i = 0; i < projects.Count; i++)
@@ -109,30 +118,36 @@ public sealed class ScanOrchestrator
         var result = new List<ScannedProject>();
         foreach (var repo in repos)
         {
-            try { result.AddRange(PackageGraphBuilder.LoadProjects(workspace, [repo], config, g)); }
-            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+            // One repo failing for any reason must not discard the others.
+            try { result.AddRange(PackageGraphBuilder.LoadProjects(workspace, [repo], config, g, repos)); }
+            catch (Exception ex)
             {
-                ParseError(g, workspace, repo.Name, Severities.Warning, $"{PathUtil.Rel(workspace, repo.AbsolutePath)}: {ex.Message}");
+                ParseError(g, workspace, repo.Name, Severities.Warning, $"{repo.RelativePath}: {ex.Message}");
             }
         }
         return result;
     }
 
-    private static SourceSet LoadSources(string workspace, ScannedProject p, IReadOnlyList<ScannedProject> all, DepGraph g, ParseCache cache)
+    private static SourceSet LoadSources(string workspace, ScannedProject p, IReadOnlyList<ScannedProject> all,
+        IReadOnlyList<string> repoDirs, DepGraph g, ParseCache cache)
     {
         SourceSet set;
         try
         {
             set = SourceSet.Load(workspace, p.Repo.Name, p.Id, p.File.Name, p.Directory,
-                (rel, ex) => ParseError(g, workspace, p.Repo.Name, Severities.Info, $"{rel}: {ex.Message}"), cache);
+                (rel, ex) => ParseError(g, workspace, p.Repo.Name, Severities.Info, $"{rel}: {ex.Message}"), cache,
+                (dir, ex) => ParseError(g, workspace, p.Repo.Name, Severities.Warning,
+                    $"{PathUtil.Rel(workspace, dir)}/: directory skipped: {ex.Message}"));
         }
-        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        catch (Exception ex)
         {
             ParseError(g, workspace, p.Repo.Name, Severities.Warning, $"{PathUtil.Rel(workspace, p.Directory)}: {ex.Message}");
             return new SourceSet(p.Repo.Name, p.Id, p.File.Name, []);
         }
-        var nested = all.Where(o => o != p && IsUnder(o.Directory, p.Directory))
-            .Select(o => PathUtil.Rel(workspace, o.Directory) + "/").ToList();
+        // Sources of nested projects and nested repos belong to them, not to this project.
+        var nested = all.Where(o => o != p && IsUnder(o.Directory, p.Directory)).Select(o => o.Directory)
+            .Concat(repoDirs.Where(d => IsUnder(d, p.Directory)))
+            .Select(d => PathUtil.Rel(workspace, d) + "/").ToList();
         var docs = set.Docs.Where(d => !nested.Any(n => d.RelativePath.StartsWith(n, StringComparison.Ordinal))).ToList();
         foreach (var doc in docs)
         {
@@ -149,37 +164,33 @@ public sealed class ScanOrchestrator
         && dir.StartsWith(parent.TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase);
 
     private static void ParseError(DepGraph g, string workspace, string repo, string severity, string message) =>
-        g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, severity, [Ids.Repo(repo)], StripWorkspace(workspace, message)));
+        g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, severity, [Ids.Repo(repo)], PathUtil.StripWorkspace(workspace, message)));
 
-    // Exception messages embed absolute paths; the graph must stay workspace-relative.
-    private static string StripWorkspace(string workspace, string message)
-    {
-        var root = workspace.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return message
-            .Replace(root + Path.DirectorySeparatorChar, "", StringComparison.OrdinalIgnoreCase)
-            .Replace(root.Replace('\\', '/') + "/", "", StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static void DedupeEndpointIds(DepGraph g)
-    {
-        var seen = new Dictionary<string, int>();
-        for (var i = 0; i < g.Endpoints.Count; i++)
-        {
-            var id = g.Endpoints[i].Id;
-            seen[id] = seen.GetValueOrDefault(id) + 1;
-            if (seen[id] > 1) g.Endpoints[i] = g.Endpoints[i] with { Id = $"{id}#{seen[id]}" };
-        }
-    }
+    private static void DedupeEndpointIds(DepGraph g) =>
+        DedupeIds(g.Endpoints, e => e.Id, (e, id) => e with { Id = id });
 
     // Two Client projects can share a name (same file name in different repos, or #2 duplicates), so cm ids may collide.
-    private static void DedupeClientMethodIds(DepGraph g)
+    private static void DedupeClientMethodIds(DepGraph g) =>
+        DedupeIds(g.ClientMethods, c => c.Id, (c, id) => c with { Id = id });
+
+    /// <summary>
+    /// The first holder of an id keeps it; later ones get the lowest free "#N". A generated id never takes an id
+    /// that some other item already carries (finders may emit "#2" themselves, e.g. for overloads).
+    /// </summary>
+    private static void DedupeIds<T>(List<T> items, Func<T, string> idOf, Func<T, string, T> withId)
     {
-        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
-        for (var i = 0; i < g.ClientMethods.Count; i++)
+        var taken = items.Select(idOf).ToHashSet(StringComparer.Ordinal);
+        var kept = new HashSet<string>(StringComparer.Ordinal);
+        for (var i = 0; i < items.Count; i++)
         {
-            var id = g.ClientMethods[i].Id;
-            seen[id] = seen.GetValueOrDefault(id) + 1;
-            if (seen[id] > 1) g.ClientMethods[i] = g.ClientMethods[i] with { Id = $"{id}#{seen[id]}" };
+            var id = idOf(items[i]);
+            if (kept.Add(id)) continue;
+            var n = 2;
+            while (taken.Contains($"{id}#{n}")) n++;
+            var fresh = $"{id}#{n}";
+            taken.Add(fresh);
+            kept.Add(fresh);
+            items[i] = withId(items[i], fresh);
         }
     }
 
@@ -203,9 +214,11 @@ public sealed class ScanOrchestrator
 
     private static Dictionary<string, IReadOnlyList<string>> ReferencedProjects(IReadOnlyList<ScannedProject> projects, DepGraph g)
     {
-        var byPath = projects.ToDictionary(p => p.File.AbsolutePath, p => p.Id, StringComparer.OrdinalIgnoreCase);
-        var producers = g.Packages.ToDictionary(p => p.PackageId, p => p.ProducerProjectIds, StringComparer.OrdinalIgnoreCase);
-        return projects.ToDictionary(p => p.Id, p => (IReadOnlyList<string>)
+        var byPath = projects.GroupBy(p => p.File.AbsolutePath, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.First().Id, StringComparer.OrdinalIgnoreCase);
+        var producers = g.Packages.GroupBy(p => p.PackageId, StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(x => x.Key, x => x.SelectMany(p => p.ProducerProjectIds).Distinct().ToList(), StringComparer.OrdinalIgnoreCase);
+        return projects.GroupBy(p => p.Id).Select(x => x.First()).ToDictionary(p => p.Id, p => (IReadOnlyList<string>)
             p.File.ProjectReferences.Select(r => byPath.GetValueOrDefault(r)).OfType<string>()
                 .Concat(p.File.PackageReferences.SelectMany(r => producers.GetValueOrDefault(r.Id, [])))
                 .Distinct().ToList());
@@ -237,7 +250,9 @@ public sealed class ScanOrchestrator
         var edges = g.Edges.OrderBy(e => e.Kind).ThenBy(e => e.From, StringComparer.Ordinal).ThenBy(e => e.To, StringComparer.Ordinal)
             .ThenBy(e => e.Source, StringComparer.Ordinal).ThenBy(e => e.StatusCode).ThenBy(e => e.FieldName, StringComparer.Ordinal).ToList();
         g.Edges.Clear(); g.Edges.AddRange(edges);
-        var diags = g.Diagnostics.OrderBy(d => d.Kind, StringComparer.Ordinal)
+        // identical diagnostics (e.g. one skipped folder seen by both the project and the source enumeration) collapse
+        var diags = g.Diagnostics.DistinctBy(d => (d.Kind, d.Severity, string.Join('\n', d.NodeIds), d.Message))
+            .OrderBy(d => d.Kind, StringComparer.Ordinal)
             .ThenBy(d => d.NodeIds.FirstOrDefault(), StringComparer.Ordinal).ThenBy(d => d.Message, StringComparer.Ordinal).ToList();
         g.Diagnostics.Clear(); g.Diagnostics.AddRange(diags);
     }

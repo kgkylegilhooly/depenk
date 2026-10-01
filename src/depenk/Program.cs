@@ -5,6 +5,7 @@ using Depenk.Core;
 using Depenk.Core.Model;
 using Depenk.Scanning.Config;
 
+// Exit codes: 0 success, 1 unexpected error, 2 invalid depenk.yml, 3 workspace folder not found.
 var workspaceOption = new Option<DirectoryInfo>(
     "--workspace", () => new DirectoryInfo(Directory.GetCurrentDirectory()),
     "Folder containing the local repo clones (default: current directory)");
@@ -15,14 +16,20 @@ var scan = new Command("scan", "Scan the workspace and write .depenk/graph.json"
 scan.SetHandler(ctx =>
 {
     var ws = ctx.ParseResult.GetValueForOption(workspaceOption)!.FullName;
-    if (!ctx.ParseResult.GetValueForOption(forceOption) && WorkspaceManifest.IsUpToDate(ws))
+    if (!Directory.Exists(ws))
     {
-        Console.WriteLine($"Graph is up to date ({Path.GetRelativePath(ws, ScanOrchestrator.GraphPath(ws))})");
-        ctx.ExitCode = 0;
+        Console.Error.WriteLine($"depenk: workspace folder not found: {ws}");
+        ctx.ExitCode = 3;
         return;
     }
     try
     {
+        if (!ctx.ParseResult.GetValueForOption(forceOption) && WorkspaceManifest.IsUpToDate(ws))
+        {
+            Console.WriteLine($"Graph is up to date ({Path.GetRelativePath(ws, ScanOrchestrator.GraphPath(ws))})");
+            ctx.ExitCode = 0;
+            return;
+        }
         var sw = Stopwatch.StartNew();
         var manifest = WorkspaceManifest.Compute(ws); // before the scan: edits made during it stay detectable
         var graph = new ScanOrchestrator().Scan(ws);
@@ -41,6 +48,11 @@ scan.SetHandler(ctx =>
     {
         Console.Error.WriteLine(ex.Message);
         ctx.ExitCode = 2;
+    }
+    catch (Exception ex)
+    {
+        Console.Error.WriteLine($"depenk: scan failed: {ex.GetType().Name}: {ex.Message}");
+        ctx.ExitCode = 1;
     }
 });
 
