@@ -240,4 +240,33 @@ public class ClientMethodFinderTests
             """);
         Assert.Empty(m);
     }
+
+    [Fact]
+    public void Overloads_WithDifferentRoutes_KeepSeparateNodes_AgreeingOverloadsCollapse()
+    {
+        var methods = new ClientMethodFinder(new DepenkConfig())
+            .Find(Src.SetFor("orders", "Orders.Client", ("orders/src/Orders.Client/Client.cs", """
+                public interface IThingsClient
+                {
+                    Task<string> ListAsync();
+                    Task<string> ListAsync(int p);
+                }
+                public class ThingsClient(HttpClient http) : IThingsClient
+                {
+                    public Task<string> ListAsync() => http.GetStringAsync("api/a");
+                    public Task<string> ListAsync(int p) => http.GetStringAsync($"api/b?p={p}");
+                    public Task<string> GetAsync(int id) => http.GetStringAsync($"api/c/{id}");
+                    public Task<string> GetAsync(int id, CancellationToken ct) => http.GetStringAsync($"api/c/{id}");
+                }
+                """)))
+            .Methods.Select(m => (m.Id, m.Verb, m.NormalizedRoute)).ToList();
+
+        Assert.Equal([
+            ("cm:Orders.Client:IThingsClient.ListAsync", "GET", "api/a"),
+            ("cm:Orders.Client:IThingsClient.ListAsync#2", "GET", "api/b"),
+            ("cm:Orders.Client:ThingsClient.ListAsync", "GET", "api/a"),
+            ("cm:Orders.Client:ThingsClient.ListAsync#2", "GET", "api/b"),
+            ("cm:Orders.Client:ThingsClient.GetAsync", "GET", "api/c/{}"),
+        ], methods);
+    }
 }

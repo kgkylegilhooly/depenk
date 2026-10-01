@@ -93,4 +93,57 @@ public class ScanOrchestratorTests
         var g = new ScanOrchestrator().Scan(ws.Root);
         Assert.Equal(["ep:r:GET:/api/things/{id}", "ep:r:GET:/api/things/{id}#2"], g.Endpoints.Select(e => e.Id));
     }
+
+    [Fact]
+    public void ClientOverloads_TargetingDifferentRoutes_AreAllLinked()
+    {
+        using var ws = new TempWorkspace()
+            .File("svc/src/Svc.Api/Svc.Api.csproj", "<Project Sdk=\"Microsoft.NET.Sdk.Web\" />")
+            .File("svc/src/Svc.Api/C.cs", """
+                using Microsoft.AspNetCore.Mvc;
+                namespace Svc;
+                [ApiController, Route("api")]
+                public class ThingsController : ControllerBase
+                {
+                    [HttpGet("a")] public string A() => "";
+                    [HttpGet("b")] public string B(int p) => "";
+                }
+                """)
+            .File("svc/src/Svc.Client/Svc.Client.csproj",
+                "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><PackageId>Svc.Client</PackageId><IsPackable>true</IsPackable></PropertyGroup></Project>")
+            .File("svc/src/Svc.Client/ThingsClient.cs", """
+                namespace Svc.Client;
+                public class ThingsClient(HttpClient http)
+                {
+                    public Task<string> ListAsync() => http.GetStringAsync("api/a");
+                    public Task<string> ListAsync(int p) => http.GetStringAsync($"api/b?p={p}");
+                }
+                """)
+            .File("app/src/App/App.csproj", """
+                <Project Sdk="Microsoft.NET.Sdk"><ItemGroup><PackageReference Include="Svc.Client" Version="1.0.0" /></ItemGroup></Project>
+                """)
+            .File("app/src/App/Uses.cs", """
+                using Svc.Client;
+                namespace App;
+                public class Uses(ThingsClient things)
+                {
+                    public Task<string> Run() => things.ListAsync(2);
+                }
+                """)
+            .Repo("svc").Repo("app");
+
+        var g = new ScanOrchestrator().Scan(ws.Root);
+
+        var targets = g.EdgesOf(EdgeKind.Targets).Select(e => (e.From, e.To)).ToList();
+        Assert.Equal([
+            ("cm:Svc.Client:ThingsClient.ListAsync", "ep:svc:GET:/api/a"),
+            ("cm:Svc.Client:ThingsClient.ListAsync#2", "ep:svc:GET:/api/b"),
+        ], targets);
+        Assert.DoesNotContain(g.Diagnostics, d => d.Kind == DiagnosticKinds.UnusedEndpoint);
+        // the one-argument call resolves to the one-parameter overload only
+        var invoke = Assert.Single(g.EdgesOf(EdgeKind.Invokes));
+        Assert.Equal(("cm:Svc.Client:ThingsClient.ListAsync#2", Confidence.Medium), (invoke.To, invoke.Confidence));
+        Assert.DoesNotContain(g.Diagnostics, d => d.Kind == DiagnosticKinds.AmbiguousCallSite);
+        GraphIntegrity.AssertValid(g);
+    }
 }

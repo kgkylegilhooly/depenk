@@ -1,6 +1,7 @@
 using Depenk.Core;
 using Depenk.Core.Model;
 using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static Depenk.Analysis.SyntaxHelpers;
 using Diagnostic = Depenk.Core.Model.Diagnostic;
@@ -35,6 +36,7 @@ public static class CallSiteFinder
             if (DeclaredTypes.Of(receiver, inv) is not { } declared) continue;
             var matches = byKey[(Normalize(declared), name)].ToList();
             if (matches.Count == 0) continue;
+            if (matches.Count > 1) matches = ByArgumentCount(matches, inv.ArgumentList.Arguments.Count);
             if (matches.Count > 1) matches = Disambiguate(matches, declared, doc);
 
             var ambiguous = matches.Count > 1;
@@ -81,6 +83,26 @@ public static class CallSiteFinder
 
         var filtered = matches.Where(m => hints.Any(h => Related(h, ProjectName(m)))).ToList();
         return filtered.Count > 0 ? filtered : matches;
+    }
+
+    /// <summary>
+    /// Overloads of one client method are separate nodes when they target different routes. Keep the candidates whose
+    /// parameter list accepts the call's argument count; falls back to all candidates when none (or all) do.
+    /// </summary>
+    private static List<ClientMethodNode> ByArgumentCount(List<ClientMethodNode> matches, int argCount)
+    {
+        var accepting = matches.Where(m => Accepts(m, argCount)).ToList();
+        return accepting.Count > 0 ? accepting : matches;
+
+        static bool Accepts(ClientMethodNode m, int args)
+        {
+            var open = m.Signature.IndexOf(" " + m.MethodName + "(", StringComparison.Ordinal);
+            if (open < 0) return true;
+            var ps = SyntaxFactory.ParseParameterList(m.Signature[(open + 1 + m.MethodName.Length)..]).Parameters;
+            var unbounded = ps.Any(p => p.Modifiers.Any(SyntaxKind.ParamsKeyword));
+            var required = ps.Count(p => p.Default is null && !p.Modifiers.Any(SyntaxKind.ParamsKeyword));
+            return args >= required && (unbounded || args <= ps.Count);
+        }
     }
 
     /// <summary>"proj:r/Api#2" → "Api".</summary>
