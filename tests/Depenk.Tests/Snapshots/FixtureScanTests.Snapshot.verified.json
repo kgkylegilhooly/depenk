@@ -1091,7 +1091,7 @@
         "ep:customers:GET:/api/customers/{id:guid}",
         "ep:customers:GET:/api/customers/{slug}"
       ],
-      "message": "cm:Customers.Client:CustomersClient.GetCustomerAsync (GET /api/customers/{}) matches 2 endpoints"
+      "message": "cm:Customers.Client:CustomersClient.GetCustomerAsync (GET /api/customers/{}) matches 2 endpoints: ep:customers:GET:/api/customers/{id:guid}, ep:customers:GET:/api/customers/{slug}"
     },
     {
       "kind": "cycle",

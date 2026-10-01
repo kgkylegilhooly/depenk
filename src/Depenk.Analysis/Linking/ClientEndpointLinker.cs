@@ -15,28 +15,31 @@ public static class ClientEndpointLinker
                     $"{cm.Id}: no HTTP call detected"));
                 continue;
             }
+            var route = cm.Route ?? cm.NormalizedRoute;
             var sameVerb = byRepo[cm.Repo].Where(e => e.Verb.Equals(cm.Verb, StringComparison.OrdinalIgnoreCase)).ToList();
             var exact = sameVerb.Where(e => e.NormalizedRoute == cm.NormalizedRoute).ToList();
+            var (matches, strategy) = exact.Count > 0
+                ? (exact, cm.Strategy)
+                : (sameVerb.Where(e => IsSuffix(e.NormalizedRoute, cm.NormalizedRoute)).ToList(), cm.Strategy + "+suffix");
 
-            if (exact.Count == 1)
+            if (matches.Count == 0)
             {
-                graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, exact[0].Id, cm.Confidence) { Strategy = cm.Strategy });
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, Severities.Info, [cm.Id],
+                    $"{cm.Id}: no endpoint in repo '{cm.Repo}' matches {cm.Verb} {route}"));
             }
-            else if (exact.Count > 1)
+            else if (matches.Count == 1)
             {
-                foreach (var ep in exact)
-                    graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, ep.Id, Confidence.Low) { Strategy = cm.Strategy });
-                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousRoute, Severities.Warning, [cm.Id, .. exact.Select(e => e.Id)],
-                    $"{cm.Id} ({cm.Verb} {cm.Route}) matches {exact.Count} endpoints"));
+                // a suffix match is a guess: Low; an exact match keeps the client method's own confidence
+                var confidence = exact.Count == 1 ? cm.Confidence : Confidence.Low;
+                graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, matches[0].Id, confidence) { Strategy = strategy });
             }
             else
             {
-                var suffix = sameVerb.Where(e => IsSuffix(e.NormalizedRoute, cm.NormalizedRoute)).ToList();
-                if (suffix.Count == 1)
-                    graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, suffix[0].Id, Confidence.Low) { Strategy = cm.Strategy + "+suffix" });
-                else
-                    graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.UnresolvedClientMethod, Severities.Info, [cm.Id],
-                        $"{cm.Id}: no endpoint in repo '{cm.Repo}' matches {cm.Verb} {cm.Route}"));
+                foreach (var ep in matches)
+                    graph.Edges.Add(new Edge(EdgeKind.Targets, cm.Id, ep.Id, Confidence.Low) { Strategy = strategy });
+                graph.Diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousRoute, Severities.Warning, [cm.Id, .. matches.Select(e => e.Id)],
+                    $"{cm.Id} ({cm.Verb} {route}) matches {matches.Count} endpoints" +
+                    (exact.Count == 0 ? " by route suffix" : "") + $": {string.Join(", ", matches.Select(e => e.Id))}"));
             }
         }
     }
