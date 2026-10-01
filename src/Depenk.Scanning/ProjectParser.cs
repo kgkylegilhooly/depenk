@@ -52,11 +52,12 @@ public static class ProjectParser
             .ToList();
 
         var isTestProp = Prop("IsTestProject");
+        // Explicit IsTestProject=true marks a test project; explicit =false beats every heuristic.
         var isTest = string.Equals(isTestProp, "true", StringComparison.OrdinalIgnoreCase)
-                     || packageRefs.Any(r => r.Id.Equals(TestSdk, StringComparison.OrdinalIgnoreCase))
-                     || propsPackageRefs.Contains(TestSdk)
                      || (!string.Equals(isTestProp, "false", StringComparison.OrdinalIgnoreCase)
-                         && TestNameSuffixes.Any(s => name.EndsWith(s, StringComparison.OrdinalIgnoreCase)));
+                         && (packageRefs.Any(r => r.Id.Equals(TestSdk, StringComparison.OrdinalIgnoreCase))
+                             || propsPackageRefs.Contains(TestSdk)
+                             || TestNameSuffixes.Any(s => name.EndsWith(s, StringComparison.OrdinalIgnoreCase))));
         var packableProp = Prop("IsPackable");
         var isPackable = packableProp is not null
             ? packableProp.Equals("true", StringComparison.OrdinalIgnoreCase)

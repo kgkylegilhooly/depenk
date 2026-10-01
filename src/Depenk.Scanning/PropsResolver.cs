@@ -32,8 +32,9 @@ public static partial class PropsResolver
                 var doc = XDocument.Load(buildProps);
                 foreach (var (k, v) in ReadProperties(doc))
                     props.TryAdd(k, v); // nearer already added → wins
-                // items are additive in MSBuild; only the ids are needed (test-SDK detection)
-                foreach (var id in doc.Descendants().Where(e => e.Name.LocalName == "PackageReference")
+                // items are additive in MSBuild; only the ids are needed (test-SDK detection).
+                // Anything under a Condition (on the item or any ancestor) is not statically knowable, so it is ignored.
+                foreach (var id in doc.Descendants().Where(e => e.Name.LocalName == "PackageReference" && !IsConditional(e))
                              .Select(e => (string?)e.Attribute("Include")).OfType<string>())
                     packageRefs.Add(id);
             }
@@ -52,6 +53,9 @@ public static partial class PropsResolver
         }
         return (props, central, packageRefs);
     }
+
+    private static bool IsConditional(XElement e) =>
+        e.AncestorsAndSelf().Any(a => a.Attribute("Condition") is not null);
 
     public static IEnumerable<(string Key, string Value)> ReadProperties(XDocument doc) =>
         doc.Descendants().Where(e => e.Name.LocalName == "PropertyGroup")
