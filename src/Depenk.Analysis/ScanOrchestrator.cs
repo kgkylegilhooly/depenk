@@ -23,7 +23,19 @@ public sealed class ScanOrchestrator
     /// <summary>Cumulative number of project analyses actually computed (cache misses).</summary>
     public int AnalyzedProjectCount { get; private set; }
 
-    public ScanOrchestrator(ParseCache? cache = null) => _cache = cache ?? new ParseCache();
+    private readonly IEndpointFinder[] _endpointFinders;
+
+    public ScanOrchestrator(ParseCache? cache = null) : this(cache, null) { }
+
+    /// <summary>Test seam: custom endpoint finders.</summary>
+    internal ScanOrchestrator(ParseCache? cache, IEndpointFinder[]? endpointFinders)
+    {
+        _cache = cache ?? new ParseCache();
+        _endpointFinders = endpointFinders ?? [new ControllerEndpointFinder(), new MinimalApiEndpointFinder()];
+    }
+
+    /// <summary>Test seam: called with (stage, projectId) before each isolated per-project step ("analysis", "callSites").</summary>
+    internal Action<string, string>? FaultInjection { get; init; }
 
     public DepGraph Scan(string workspace)
     {
@@ -59,7 +71,6 @@ public sealed class ScanOrchestrator
         var configPath = Path.Combine(workspace, ConfigLoader.FileName);
         var configHash = File.Exists(configPath) ? ParseCache.HashText(File.ReadAllText(configPath)) : "";
 
-        IEndpointFinder[] endpointFinders = [new ControllerEndpointFinder(), new MinimalApiEndpointFinder()];
         var clientFinder = new ClientMethodFinder(config);
         var endpoints = new Dictionary<string, List<EndpointNode>>();
         var clients = new Dictionary<string, ClientScanResult>();
@@ -70,12 +81,22 @@ public sealed class ScanOrchestrator
             var key = configHash + "|" + p.File.IsTestProject + "|" + string.Join(",", src.Docs.Select(d => d.RelativePath + ":" + d.Hash));
             if (!_analysis.TryGetValue(p.Id, out var cached) || cached.Key != key)
             {
-                var test = p.File.IsTestProject;
-                cached = (key,
-                    test ? [] : endpointFinders.SelectMany(f => f.Find(src)).ToList(),
-                    test ? new ClientScanResult([], false) : clientFinder.Find(src));
-                _analysis[p.Id] = cached;
                 AnalyzedProjectCount++;
+                try
+                {
+                    FaultInjection?.Invoke("analysis", p.Id);
+                    var test = p.File.IsTestProject;
+                    cached = (key,
+                        test ? [] : _endpointFinders.SelectMany(f => f.Find(src)).ToList(),
+                        test ? new ClientScanResult([], false) : clientFinder.Find(src));
+                    _analysis[p.Id] = cached;
+                }
+                catch (Exception ex)
+                {
+                    ProjectError(g, workspace, p, ex); // not cached: the next scan retries
+                    _analysis.Remove(p.Id);
+                    cached = (key, [], new ClientScanResult([], false));
+                }
             }
             endpoints[p.Id] = cached.Endpoints;
             clients[p.Id] = cached.Clients;
@@ -95,16 +116,31 @@ public sealed class ScanOrchestrator
 
         var referenced = ReferencedProjects(projects, g);
         IReadOnlyList<string> RefsOf(string id) => referenced.GetValueOrDefault(id, []);
-        new ModelExtractor([.. sources.Values], RefsOf)
-            .Extract(g, kinds.Where(k => k.Value == ProjectKind.Client).Select(k => k.Key).ToHashSet(),
-                g.ClientMethods.Select(cm => (cm.ProjectId, cm.TypeName)).ToHashSet());
+        var byId = projects.GroupBy(p => p.Id).ToDictionary(x => x.Key, x => x.First());
+        try
+        {
+            new ModelExtractor([.. sources.Values], RefsOf)
+                .Extract(g, kinds.Where(k => k.Value == ProjectKind.Client).Select(k => k.Key).ToHashSet(),
+                    g.ClientMethods.Select(cm => (cm.ProjectId, cm.TypeName)).ToHashSet(),
+                    (projectId, ex) => { if (byId.TryGetValue(projectId, out var p)) ProjectError(g, workspace, p, ex); });
+        }
+        catch (Exception ex) // outside any one project (e.g. building the type index): models stay partial
+        {
+            g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, Severities.Warning, [],
+                PathUtil.StripWorkspace(workspace, $"model extraction failed: {ex.Message}")));
+        }
 
         var usedSiteIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in projects.Where(p => !p.File.IsTestProject))
         {
-            var refs = RefsOf(p.Id).ToHashSet();
-            var scan = CallSiteFinder.Find(sources[p.Id], g.ClientMethods.Where(cm => refs.Contains(cm.ProjectId)).ToList());
-            AddCallSiteScan(g, scan, usedSiteIds);
+            try
+            {
+                FaultInjection?.Invoke("callSites", p.Id);
+                var refs = RefsOf(p.Id).ToHashSet();
+                var scan = CallSiteFinder.Find(sources[p.Id], g.ClientMethods.Where(cm => refs.Contains(cm.ProjectId)).ToList());
+                AddCallSiteScan(g, scan, usedSiteIds);
+            }
+            catch (Exception ex) { ProjectError(g, workspace, p, ex); }
         }
 
         FillCallCounts(g);
@@ -165,6 +201,11 @@ public sealed class ScanOrchestrator
 
     private static void ParseError(DepGraph g, string workspace, string repo, string severity, string message) =>
         g.Diagnostics.Add(new Diagnostic(DiagnosticKinds.ParseError, severity, [Ids.Repo(repo)], PathUtil.StripWorkspace(workspace, message)));
+
+    /// <summary>An unexpected failure while analysing one project: a parseError for its repo, and the scan goes on.</summary>
+    private static void ProjectError(DepGraph g, string workspace, ScannedProject p, Exception ex) =>
+        ParseError(g, workspace, p.Repo.Name, Severities.Warning,
+            $"{PathUtil.Rel(workspace, p.File.AbsolutePath)}: analysis failed: {ex.Message}");
 
     private static void DedupeEndpointIds(DepGraph g) =>
         DedupeIds(g.Endpoints, e => e.Id, (e, id) => e with { Id = id });

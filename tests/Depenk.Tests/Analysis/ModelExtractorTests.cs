@@ -279,4 +279,35 @@ public class ModelExtractorTests
             .Extract(g, new HashSet<string> { "proj:r/C.Client" }, new HashSet<(string, string)> { ("proj:r/C.Client", "ApiClient") });
         Assert.Equal(["C.PlainDto"], g.Models.Select(m => m.FullName));
     }
+
+    [Fact]
+    public void FailureInOneEndpoint_IsReported_OthersStillExtracted()
+    {
+        var api = Src.SetFor("r", "Api", ("r/Api/C.cs", """
+            namespace A;
+            [Route("x")] public class XController : ControllerBase
+            {
+                [HttpGet("one")] public OrderDto One() => null!;
+            }
+            """));
+        var bad = Src.SetFor("r", "Bad", ("r/Bad/C.cs", """
+            namespace B;
+            [Route("y")] public class YController : ControllerBase
+            {
+                [HttpGet("two")] public OrderDto Two() => null!;
+            }
+            """));
+        var models = Src.SetFor("r", "M", ("r/M/O.cs", "namespace M; public class OrderDto { public int X { get; set; } }"));
+        var g = new DepGraph();
+        g.Endpoints.AddRange(new ControllerEndpointFinder().Find(api));
+        g.Endpoints.AddRange(new ControllerEndpointFinder().Find(bad));
+        var errors = new List<string>();
+
+        new ModelExtractor([api, bad, models], id => id == "proj:r/Bad" ? throw new InvalidOperationException("boom") : [])
+            .Extract(g, new HashSet<string>(), null, (projectId, _) => errors.Add(projectId));
+
+        Assert.Equal(["proj:r/Bad"], errors);
+        Assert.Equal("ep:r:GET:/x/one", Assert.Single(g.EdgesOf(EdgeKind.Returns)).From);
+        GraphIntegrity.AssertValid(g);
+    }
 }

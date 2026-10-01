@@ -44,8 +44,15 @@ public static class PathUtil
     public static string StripWorkspace(string workspace, string message)
     {
         var root = workspace.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
-        return message
+        var slashRoot = root.Replace('\\', '/');
+        message = message
             .Replace(root + Path.DirectorySeparatorChar, "", StringComparison.OrdinalIgnoreCase)
-            .Replace(root.Replace('\\', '/') + "/", "", StringComparison.OrdinalIgnoreCase);
+            .Replace(slashRoot + "/", "", StringComparison.OrdinalIgnoreCase);
+        // the bare root (not followed by more of a path name) becomes "."
+        foreach (var r in new[] { root, slashRoot }.Distinct())
+            message = System.Text.RegularExpressions.Regex.Replace(message,
+                System.Text.RegularExpressions.Regex.Escape(r) + @"(?![\w.\-])", ".",
+                System.Text.RegularExpressions.RegexOptions.IgnoreCase);
+        return message;
     }
 }

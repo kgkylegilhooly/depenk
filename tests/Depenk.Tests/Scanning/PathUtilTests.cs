@@ -60,4 +60,12 @@ public class PathUtilTests
         var msg = $"Access to the path '{Path.Combine(ws, "r", "x")}' is denied. {ws.Replace('\\', '/')}/r/y";
         Assert.Equal($"Access to the path '{Path.Combine("r", "x")}' is denied. r/y", PathUtil.StripWorkspace(ws, msg));
     }
+
+    [Fact]
+    public void StripWorkspace_BareRoot_BecomesDot_SiblingFolderUntouched()
+    {
+        var ws = Path.Combine(Path.GetTempPath(), "wsroot");
+        Assert.Equal("disk gone under .", PathUtil.StripWorkspace(ws, $"disk gone under {ws}"));
+        Assert.Equal($"see {ws}2", PathUtil.StripWorkspace(ws, $"see {ws}2"));
+    }
 }

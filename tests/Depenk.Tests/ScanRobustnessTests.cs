@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using Depenk.Analysis;
+using Depenk.Analysis.Endpoints;
 using Depenk.Core.Model;
 using Depenk.Tests.TestUtil;
 
@@ -165,6 +166,58 @@ public class ScanRobustnessTests
             Assert.Equal(Confidence.High, ret.Confidence);
         }
         Assert.DoesNotContain(g.Diagnostics, d => d.Kind == DiagnosticKinds.AmbiguousModel);
+        GraphIntegrity.AssertValid(g);
+    }
+
+    // ---- finding 8: per-project isolation ----
+
+    private sealed class ThrowingFinder(string projectName) : IEndpointFinder
+    {
+        public IEnumerable<EndpointNode> Find(SourceSet src) =>
+            src.ProjectName == projectName ? throw new InvalidOperationException("boom in " + src.ProjectName) : [];
+    }
+
+    private static TempWorkspace TwoApis() => new TempWorkspace()
+        .File("r/src/Good.Api/Good.Api.csproj", WebCsproj)
+        .File("r/src/Good.Api/C.cs", Controller("Good", "api/good"))
+        .File("r/src/Bad.Api/Bad.Api.csproj", WebCsproj)
+        .File("r/src/Bad.Api/C.cs", Controller("Bad", "api/bad"))
+        .Repo("r");
+
+    [Fact]
+    public void ThrowingAnalyzer_BecomesParseError_ScanContinues()
+    {
+        using var ws = TwoApis();
+        var orchestrator = new ScanOrchestrator(null, [new ControllerEndpointFinder(), new ThrowingFinder("Bad.Api")]);
+
+        var g = orchestrator.Scan(ws.Root);
+
+        Assert.Equal(["ep:r:GET:/api/good/{id}"], g.Endpoints.Select(e => e.Id));
+        Assert.Equal(["proj:r/Bad.Api", "proj:r/Good.Api"], g.Projects.Select(p => p.Id));
+        var d = Assert.Single(g.Diagnostics, d => d.Kind == DiagnosticKinds.ParseError);
+        Assert.Equal((Severities.Warning, "repo:r"), (d.Severity, d.NodeIds.Single()));
+        Assert.Equal("r/src/Bad.Api/Bad.Api.csproj: analysis failed: boom in Bad.Api", d.Message);
+        GraphIntegrity.AssertValid(g);
+
+        // a failed analysis is not cached: the next scan retries it
+        var before = orchestrator.AnalyzedProjectCount;
+        orchestrator.Scan(ws.Root);
+        Assert.Equal(before + 1, orchestrator.AnalyzedProjectCount);
+    }
+
+    [Fact]
+    public void ThrowingCallSiteScan_BecomesParseError_ScanContinues()
+    {
+        using var ws = TwoApis();
+        var g = new ScanOrchestrator { FaultInjection = (stage, id) =>
+        {
+            if (stage == "callSites" && id == "proj:r/Bad.Api") throw new IOException($"disk gone under {ws.Root}");
+        } }.Scan(ws.Root);
+
+        Assert.Equal(2, g.Endpoints.Count);
+        var d = Assert.Single(g.Diagnostics, d => d.Kind == DiagnosticKinds.ParseError);
+        Assert.StartsWith("r/src/Bad.Api/Bad.Api.csproj: analysis failed: disk gone under", d.Message);
+        Assert.DoesNotContain(ws.Root, d.Message, StringComparison.OrdinalIgnoreCase);
         GraphIntegrity.AssertValid(g);
     }
 }
