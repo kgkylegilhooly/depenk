@@ -50,20 +50,21 @@ public sealed class ScanOrchestrator
             if (kinds[p.Id] == ProjectKind.Client) g.ClientMethods.AddRange(clients[p.Id].Methods);
         }
         DedupeEndpointIds(g);
+        DedupeClientMethodIds(g);
         ClientEndpointLinker.Link(g);
 
         var referenced = ReferencedProjects(projects, g);
         IReadOnlyList<string> RefsOf(string id) => referenced.GetValueOrDefault(id, []);
         new ModelExtractor([.. sources.Values], RefsOf)
-            .Extract(g, kinds.Where(k => k.Value == ProjectKind.Client).Select(k => k.Key).ToHashSet());
+            .Extract(g, kinds.Where(k => k.Value == ProjectKind.Client).Select(k => k.Key).ToHashSet(),
+                g.ClientMethods.Select(cm => (cm.ProjectId, cm.TypeName)).ToHashSet());
 
+        var usedSiteIds = new HashSet<string>(StringComparer.Ordinal);
         foreach (var p in projects.Where(p => !p.File.IsTestProject))
         {
             var refs = RefsOf(p.Id).ToHashSet();
             var scan = CallSiteFinder.Find(sources[p.Id], g.ClientMethods.Where(cm => refs.Contains(cm.ProjectId)).ToList());
-            g.CallSites.AddRange(scan.CallSites);
-            g.Edges.AddRange(scan.Invokes);
-            g.Diagnostics.AddRange(scan.Diagnostics);
+            AddCallSiteScan(g, scan, usedSiteIds);
         }
 
         FillCallCounts(g);
@@ -139,6 +140,36 @@ public sealed class ScanOrchestrator
         }
     }
 
+    // Two Client projects can share a name (same file name in different repos, or #2 duplicates), so cm ids may collide.
+    private static void DedupeClientMethodIds(DepGraph g)
+    {
+        var seen = new Dictionary<string, int>(StringComparer.Ordinal);
+        for (var i = 0; i < g.ClientMethods.Count; i++)
+        {
+            var id = g.ClientMethods[i].Id;
+            seen[id] = seen.GetValueOrDefault(id) + 1;
+            if (seen[id] > 1) g.ClientMethods[i] = g.ClientMethods[i] with { Id = $"{id}#{seen[id]}" };
+        }
+    }
+
+    // Call site ids embed repo/project name only, so projects sharing a name can collide.
+    // Rename and rewrite this scan's own references consistently.
+    private static void AddCallSiteScan(DepGraph g, CallSiteScan scan, HashSet<string> used)
+    {
+        var renames = new Dictionary<string, string>(StringComparer.Ordinal);
+        foreach (var site in scan.CallSites)
+        {
+            var id = site.Id;
+            for (var n = 2; used.Contains(id); n++) id = $"{site.Id}#{n}";
+            used.Add(id);
+            if (id != site.Id) renames[site.Id] = id;
+            g.CallSites.Add(id == site.Id ? site : site with { Id = id });
+        }
+        string Map(string id) => renames.GetValueOrDefault(id, id);
+        g.Edges.AddRange(scan.Invokes.Select(e => e with { From = Map(e.From) }));
+        g.Diagnostics.AddRange(scan.Diagnostics.Select(d => d with { NodeIds = d.NodeIds.Select(Map).ToList() }));
+    }
+
     private static Dictionary<string, IReadOnlyList<string>> ReferencedProjects(IReadOnlyList<ScannedProject> projects, DepGraph g)
     {
         var byPath = projects.ToDictionary(p => p.File.AbsolutePath, p => p.Id, StringComparer.OrdinalIgnoreCase);
@@ -151,8 +182,8 @@ public sealed class ScanOrchestrator
 
     private static void FillCallCounts(DepGraph g)
     {
-        var siteRepo = g.CallSites.ToDictionary(c => c.Id, c => c.Repo);
-        var methodRepo = g.ClientMethods.ToDictionary(c => c.Id, c => c.Repo);
+        var siteRepo = g.CallSites.GroupBy(c => c.Id).ToDictionary(x => x.Key, x => x.First().Repo);
+        var methodRepo = g.ClientMethods.GroupBy(c => c.Id).ToDictionary(x => x.Key, x => x.First().Repo);
         var counts = g.EdgesOf(EdgeKind.Invokes)
             .Where(e => siteRepo.ContainsKey(e.From) && methodRepo.ContainsKey(e.To))
             .GroupBy(e => (From: Ids.Repo(siteRepo[e.From]), To: Ids.Repo(methodRepo[e.To])))

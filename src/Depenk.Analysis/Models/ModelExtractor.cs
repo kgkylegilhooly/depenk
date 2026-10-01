@@ -12,7 +12,9 @@ public sealed class ModelExtractor(
 {
     private readonly TypeIndex _index = new(sources);
 
-    public void Extract(DepGraph graph, IReadOnlySet<string> contractProjectIds)
+    /// <param name="clientTypes">(projectId, simple type name) of types that own client methods; they are never seeded as contract models.</param>
+    public void Extract(DepGraph graph, IReadOnlySet<string> contractProjectIds,
+        IReadOnlySet<(string ProjectId, string TypeName)>? clientTypes = null)
     {
         var models = graph.Models.ToDictionary(m => m.Id);
         var edges = new HashSet<Edge>(graph.Edges);
@@ -99,6 +101,7 @@ public sealed class ModelExtractor(
         }
 
         foreach (var decl in _index.All.Where(d => contractProjectIds.Contains(d.Source.ProjectId)
+                                                  && clientTypes?.Contains((d.Source.ProjectId, d.FullName.Split('.')[^1])) != true
                                                   && d.Parts.Any(p => p.Node.Modifiers.Any(SyntaxKind.PublicKeyword))))
             EnsureDecl(decl, 1);
     }
@@ -122,7 +125,7 @@ public sealed class ModelExtractor(
         }
         foreach (var type in types)
         {
-            if (type.ParameterList is { } positional)
+            if (type is RecordDeclarationSyntax && type.ParameterList is { } positional)
                 AddAll(positional.Parameters.Where(p => p.Type is not null).Select(p => Field(p.Identifier.Text, p.Type!)));
             AddAll(PublicProperties(type));
         }

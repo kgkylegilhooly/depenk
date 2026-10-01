@@ -548,13 +548,6 @@
   ],
   "models": [
     {
-      "id": "model:?:IApiHttpClient",
-      "repo": "",
-      "fullName": "IApiHttpClient",
-      "kind": "opaque",
-      "fields": []
-    },
-    {
       "id": "model:Billing.Client:Acme.Billing.Client.CreateInvoiceRequest",
       "repo": "billing",
       "projectId": "proj:billing/Billing.Client",
@@ -620,18 +613,6 @@
       ],
       "location": {
         "path": "customers/src/Customers.Client/CustomerDto.cs",
-        "line": 3
-      }
-    },
-    {
-      "id": "model:Customers.Client:Acme.Customers.Client.CustomersClient",
-      "repo": "customers",
-      "projectId": "proj:customers/Customers.Client",
-      "fullName": "Acme.Customers.Client.CustomersClient",
-      "kind": "class",
-      "fields": [],
-      "location": {
-        "path": "customers/src/Customers.Client/CustomersClient.cs",
         "line": 3
       }
     },
@@ -743,25 +724,6 @@
       "location": {
         "path": "orders/src/Orders.Client/Models.cs",
         "line": 21
-      }
-    },
-    {
-      "id": "model:Orders.Client:Acme.Orders.Client.OrdersClient",
-      "repo": "orders",
-      "projectId": "proj:orders/Orders.Client",
-      "fullName": "Acme.Orders.Client.OrdersClient",
-      "kind": "class",
-      "fields": [
-        {
-          "name": "http",
-          "typeName": "Acme.Http.IApiHttpClient",
-          "nullable": false,
-          "collection": false
-        }
-      ],
-      "location": {
-        "path": "orders/src/Orders.Client/OrdersClient.cs",
-        "line": 10
       }
     },
     {
@@ -1060,13 +1022,6 @@
       "fieldName": "UnitPrice"
     },
     {
-      "kind": "fieldOf",
-      "from": "model:Orders.Client:Acme.Orders.Client.OrdersClient",
-      "to": "model:?:IApiHttpClient",
-      "confidence": "high",
-      "fieldName": "http"
-    },
-    {
       "kind": "dependsOn",
       "from": "repo:billing",
       "to": "repo:customers",
@@ -1162,22 +1117,6 @@
         "ep:orders:DELETE:/api/orders/{id}"
       ],
       "message": "DELETE /api/orders/{id} (OrdersController.Delete) is not called by any client method"
-    },
-    {
-      "kind": "unusedModel",
-      "severity": "info",
-      "nodeIds": [
-        "model:Customers.Client:Acme.Customers.Client.CustomersClient"
-      ],
-      "message": "Acme.Customers.Client.CustomersClient is not used by any endpoint or model"
-    },
-    {
-      "kind": "unusedModel",
-      "severity": "info",
-      "nodeIds": [
-        "model:Orders.Client:Acme.Orders.Client.OrdersClient"
-      ],
-      "message": "Acme.Orders.Client.OrdersClient is not used by any endpoint or model"
     },
     {
       "kind": "versionDrift",

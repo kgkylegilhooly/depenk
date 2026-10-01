@@ -219,4 +219,29 @@ public class ModelExtractorTests
         new ModelExtractor([s1], _ => []).Extract(other, new HashSet<string> { "proj:r/S1" });
         Assert.Single(other.Models.Single(m => m.FullName == "A.Pos").Fields);
     }
+
+    [Fact]
+    public void ClientTypes_AreNotSeeded_AndPlainClassPrimaryCtorParamsAreNotFields()
+    {
+        var s = Src.SetFor("r", "S1", ("r/S1/C.cs", """
+            namespace A;
+            public interface IOrdersClient { Task<OrderDto> Get(); }
+            public class OrdersClient(Acme.Http.IApiHttpClient http) : IOrdersClient { }
+            public class Holder(int x) { public int Y { get; set; } }
+            public struct Pt(int a) { public int B { get; set; } }
+            public record Rec(int Q);
+            public class OrderDto { public int Id { get; set; } }
+            """));
+        var g = new DepGraph();
+        var types = new HashSet<(string, string)> { ("proj:r/S1", "IOrdersClient"), ("proj:r/S1", "OrdersClient") };
+        new ModelExtractor([s], _ => []).Extract(g, new HashSet<string> { "proj:r/S1" }, types);
+
+        var names = g.Models.Select(m => m.FullName).ToList();
+        Assert.DoesNotContain("A.IOrdersClient", names);
+        Assert.DoesNotContain("A.OrdersClient", names);
+        Assert.DoesNotContain(g.Models, m => m.Kind == ModelKind.Opaque);
+        Assert.Equal(["Y"], M(g, "A.Holder").Fields.Select(f => f.Name));
+        Assert.Equal(["B"], M(g, "A.Pt").Fields.Select(f => f.Name));
+        Assert.Equal(["Q"], M(g, "A.Rec").Fields.Select(f => f.Name));
+    }
 }
