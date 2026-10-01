@@ -90,4 +90,29 @@ public class IncrementalScanTests
         Assert.Contains("depenk.yml", m.Keys);
         Assert.All(m.Keys, k => Assert.DoesNotContain((char)92, k));
     }
+
+    [Fact]
+    public void Manifest_RecordsToolAndSchemaVersion_AndAnUpgradeInvalidatesIt()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        var m = WorkspaceManifest.Compute(ws.Root);
+        Assert.Equal(WorkspaceManifest.ToolVersion, m[WorkspaceManifest.VersionKey]);
+        Assert.False(string.IsNullOrEmpty(m[WorkspaceManifest.VersionKey]));
+        Assert.Equal("1", m[WorkspaceManifest.SchemaVersionKey]);
+
+        GraphJson.Save(new ScanOrchestrator().Scan(ws.Root), ScanOrchestrator.GraphPath(ws.Root));
+        WorkspaceManifest.Save(ws.Root, m);
+        Assert.True(WorkspaceManifest.IsUpToDate(ws.Root));
+
+        // a manifest written by an older depenk is stale
+        var old = new SortedDictionary<string, string>(m, StringComparer.Ordinal) { [WorkspaceManifest.VersionKey] = "0.0.1-old" };
+        WorkspaceManifest.Save(ws.Root, old);
+        Assert.False(WorkspaceManifest.IsUpToDate(ws.Root));
+
+        var noVersion = new SortedDictionary<string, string>(m, StringComparer.Ordinal);
+        noVersion.Remove(WorkspaceManifest.VersionKey);
+        noVersion.Remove(WorkspaceManifest.SchemaVersionKey);
+        WorkspaceManifest.Save(ws.Root, noVersion); // pre-upgrade manifest format
+        Assert.False(WorkspaceManifest.IsUpToDate(ws.Root));
+    }
 }

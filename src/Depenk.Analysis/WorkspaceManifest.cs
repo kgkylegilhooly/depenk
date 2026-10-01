@@ -1,4 +1,6 @@
+using System.Reflection;
 using System.Text.Json;
+using Depenk.Core.Model;
 using Depenk.Scanning;
 using Depenk.Scanning.Config;
 
@@ -8,12 +10,22 @@ public static class WorkspaceManifest
 {
     private static readonly string[] Patterns = ["*.cs", "*.csproj", "*.props"];
 
+    internal const string VersionKey = "depenk:version", SchemaVersionKey = "depenk:schemaVersion";
+
+    /// <summary>Informational version of the analysis engine (includes the source revision when built from git).</summary>
+    internal static string ToolVersion { get; } =
+        typeof(WorkspaceManifest).Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()?.InformationalVersion
+        ?? typeof(WorkspaceManifest).Assembly.GetName().Version?.ToString() ?? "unknown";
+
     public static string ManifestPath(string workspace) => Path.Combine(workspace, ".depenk", "manifest.json");
 
     public static SortedDictionary<string, string> Compute(string workspace)
     {
         workspace = Path.GetFullPath(workspace);
         var result = new SortedDictionary<string, string>(StringComparer.Ordinal);
+        // upgrading depenk (new analysis rules or graph schema) must invalidate "up to date"
+        result[VersionKey] = ToolVersion;
+        result[SchemaVersionKey] = new DepGraph().SchemaVersion.ToString(System.Globalization.CultureInfo.InvariantCulture);
         var configPath = Path.Combine(workspace, ConfigLoader.FileName);
         if (File.Exists(configPath)) result[ConfigLoader.FileName] = ParseCache.HashText(File.ReadAllText(configPath));
 
