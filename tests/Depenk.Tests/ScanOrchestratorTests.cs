@@ -56,6 +56,7 @@ public class ScanOrchestratorTests
         var invokes = g.EdgesOf(EdgeKind.Invokes).ToList();
         Assert.All(invokes, e => Assert.Contains(g.CallSites, c => c.Id == e.From));
         Assert.All(invokes, e => Assert.Contains(g.ClientMethods, c => c.Id == e.To));
+        GraphIntegrity.AssertValid(g);
     }
 
     [Fact]
@@ -70,6 +71,7 @@ public class ScanOrchestratorTests
         var g = new ScanOrchestrator().Scan(ws.Root);
         Assert.Equal(g.ClientMethods.Count, g.ClientMethods.Select(c => c.Id).Distinct().Count());
         Assert.Contains(g.Diagnostics, d => d.Kind == DiagnosticKinds.DuplicateProjectName);
+        GraphIntegrity.AssertValid(g);
     }
 
     [Fact]
@@ -92,6 +94,7 @@ public class ScanOrchestratorTests
             .Repo("r");
         var g = new ScanOrchestrator().Scan(ws.Root);
         Assert.Equal(["ep:r:GET:/api/things/{id}", "ep:r:GET:/api/things/{id}#2"], g.Endpoints.Select(e => e.Id));
+        GraphIntegrity.AssertValid(g);
     }
 
     [Fact]
