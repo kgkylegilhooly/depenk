@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Billing.Client" Version="1.0.0" />
+    <PackageReference Include="Shared.Kernel" Version="1.0.0" />
+    <ProjectReference Include="..\Orders.Client\Orders.Client.csproj" />
+  </ItemGroup>
+</Project>

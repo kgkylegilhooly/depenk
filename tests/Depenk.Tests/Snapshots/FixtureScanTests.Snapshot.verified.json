@@ -1,0 +1,1131 @@
+﻿{
+  "schemaVersion": 1,
+  "workspace": ".",
+  "generatedAt": "1970-01-01T00:00:00+00:00",
+  "repos": [
+    {
+      "id": "repo:billing",
+      "name": "billing",
+      "path": "billing",
+      "headSha": "0123456789abcdef0123456789abcdef01234567",
+      "dirty": false
+    },
+    {
+      "id": "repo:customers",
+      "name": "customers",
+      "path": "customers",
+      "headSha": "0123456789abcdef0123456789abcdef01234567",
+      "dirty": false
+    },
+    {
+      "id": "repo:gateway",
+      "name": "gateway",
+      "path": "gateway",
+      "headSha": "0123456789abcdef0123456789abcdef01234567",
+      "dirty": false
+    },
+    {
+      "id": "repo:orders",
+      "name": "orders",
+      "path": "orders",
+      "headSha": "0123456789abcdef0123456789abcdef01234567",
+      "dirty": false
+    },
+    {
+      "id": "repo:shared",
+      "name": "shared",
+      "path": "shared",
+      "headSha": "0123456789abcdef0123456789abcdef01234567",
+      "dirty": false
+    }
+  ],
+  "projects": [
+    {
+      "id": "proj:billing/Billing.Api",
+      "repo": "billing",
+      "name": "Billing.Api",
+      "path": "billing/src/Billing.Api/Billing.Api.csproj",
+      "kind": "api",
+      "sdk": "Microsoft.NET.Sdk.Web",
+      "isPackable": false
+    },
+    {
+      "id": "proj:billing/Billing.Client",
+      "repo": "billing",
+      "name": "Billing.Client",
+      "path": "billing/src/Billing.Client/Billing.Client.csproj",
+      "kind": "client",
+      "sdk": "Microsoft.NET.Sdk",
+      "packageId": "Billing.Client",
+      "version": "1.0.0",
+      "isPackable": true
+    },
+    {
+      "id": "proj:customers/Customers.Api",
+      "repo": "customers",
+      "name": "Customers.Api",
+      "path": "customers/src/Customers.Api/Customers.Api.csproj",
+      "kind": "api",
+      "sdk": "Microsoft.NET.Sdk.Web",
+      "isPackable": false
+    },
+    {
+      "id": "proj:customers/Customers.Client",
+      "repo": "customers",
+      "name": "Customers.Client",
+      "path": "customers/src/Customers.Client/Customers.Client.csproj",
+      "kind": "client",
+      "sdk": "Microsoft.NET.Sdk",
+      "packageId": "Customers.Client",
+      "version": "2.0.0",
+      "isPackable": true
+    },
+    {
+      "id": "proj:gateway/Gateway.Api",
+      "repo": "gateway",
+      "name": "Gateway.Api",
+      "path": "gateway/src/Gateway.Api/Gateway.Api.csproj",
+      "kind": "api",
+      "sdk": "Microsoft.NET.Sdk.Web",
+      "isPackable": false
+    },
+    {
+      "id": "proj:orders/Orders.Api",
+      "repo": "orders",
+      "name": "Orders.Api",
+      "path": "orders/src/Orders.Api/Orders.Api.csproj",
+      "kind": "api",
+      "sdk": "Microsoft.NET.Sdk.Web",
+      "isPackable": false
+    },
+    {
+      "id": "proj:orders/Orders.Client",
+      "repo": "orders",
+      "name": "Orders.Client",
+      "path": "orders/src/Orders.Client/Orders.Client.csproj",
+      "kind": "client",
+      "sdk": "Microsoft.NET.Sdk",
+      "packageId": "Orders.Client",
+      "version": "3.4.1",
+      "isPackable": true
+    },
+    {
+      "id": "proj:orders/Orders.Tests",
+      "repo": "orders",
+      "name": "Orders.Tests",
+      "path": "orders/tests/Orders.Tests/Orders.Tests.csproj",
+      "kind": "test",
+      "sdk": "Microsoft.NET.Sdk",
+      "isPackable": false
+    },
+    {
+      "id": "proj:shared/Shared.Kernel",
+      "repo": "shared",
+      "name": "Shared.Kernel",
+      "path": "shared/src/Shared.Kernel/Shared.Kernel.csproj",
+      "kind": "library",
+      "sdk": "Microsoft.NET.Sdk",
+      "packageId": "Shared.Kernel",
+      "version": "1.0.0",
+      "isPackable": true
+    }
+  ],
+  "packages": [
+    {
+      "id": "pkg:Acme.Http",
+      "packageId": "Acme.Http",
+      "producerProjectIds": []
+    },
+    {
+      "id": "pkg:Billing.Client",
+      "packageId": "Billing.Client",
+      "producerProjectIds": [
+        "proj:billing/Billing.Client"
+      ]
+    },
+    {
+      "id": "pkg:Customers.Client",
+      "packageId": "Customers.Client",
+      "producerProjectIds": [
+        "proj:customers/Customers.Client"
+      ]
+    },
+    {
+      "id": "pkg:Microsoft.NET.Test.Sdk",
+      "packageId": "Microsoft.NET.Test.Sdk",
+      "producerProjectIds": []
+    },
+    {
+      "id": "pkg:Orders.Client",
+      "packageId": "Orders.Client",
+      "producerProjectIds": [
+        "proj:orders/Orders.Client"
+      ]
+    },
+    {
+      "id": "pkg:Refit",
+      "packageId": "Refit",
+      "producerProjectIds": []
+    },
+    {
+      "id": "pkg:Shared.Kernel",
+      "packageId": "Shared.Kernel",
+      "producerProjectIds": [
+        "proj:shared/Shared.Kernel"
+      ]
+    }
+  ],
+  "endpoints": [
+    {
+      "id": "ep:billing:POST:/api/invoices",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Api",
+      "verb": "POST",
+      "route": "/api/invoices",
+      "normalizedRoute": "api/invoices",
+      "handler": "InvoicesController.Create",
+      "parameters": [
+        {
+          "name": "request",
+          "source": "body",
+          "typeName": "CreateInvoiceRequest",
+          "required": true
+        }
+      ],
+      "responses": [
+        {
+          "statusCode": 200,
+          "typeName": "Task\u003CActionResult\u003CInvoiceDto\u003E\u003E"
+        }
+      ],
+      "location": {
+        "path": "billing/src/Billing.Api/InvoicesController.cs",
+        "line": 10
+      }
+    },
+    {
+      "id": "ep:customers:GET:/api/customers/{id:guid}",
+      "repo": "customers",
+      "projectId": "proj:customers/Customers.Api",
+      "verb": "GET",
+      "route": "/api/customers/{id:guid}",
+      "normalizedRoute": "api/customers/{}",
+      "handler": "Program.lambda@5",
+      "parameters": [
+        {
+          "name": "id",
+          "source": "route",
+          "typeName": "Guid",
+          "required": true
+        }
+      ],
+      "responses": [],
+      "location": {
+        "path": "customers/src/Customers.Api/Program.cs",
+        "line": 5
+      }
+    },
+    {
+      "id": "ep:customers:GET:/api/customers/{slug}",
+      "repo": "customers",
+      "projectId": "proj:customers/Customers.Api",
+      "verb": "GET",
+      "route": "/api/customers/{slug}",
+      "normalizedRoute": "api/customers/{}",
+      "handler": "Program.lambda@6",
+      "parameters": [
+        {
+          "name": "slug",
+          "source": "route",
+          "typeName": "string",
+          "required": true
+        }
+      ],
+      "responses": [],
+      "location": {
+        "path": "customers/src/Customers.Api/Program.cs",
+        "line": 6
+      }
+    },
+    {
+      "id": "ep:orders:DELETE:/api/orders/{id}",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Api",
+      "verb": "DELETE",
+      "route": "/api/orders/{id}",
+      "normalizedRoute": "api/orders/{}",
+      "handler": "OrdersController.Delete",
+      "parameters": [
+        {
+          "name": "id",
+          "source": "route",
+          "typeName": "Guid",
+          "required": true
+        }
+      ],
+      "responses": [],
+      "location": {
+        "path": "orders/src/Orders.Api/OrdersController.cs",
+        "line": 13
+      }
+    },
+    {
+      "id": "ep:orders:GET:/api/orders",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Api",
+      "verb": "GET",
+      "route": "/api/orders",
+      "normalizedRoute": "api/orders",
+      "handler": "OrdersController.List",
+      "parameters": [
+        {
+          "name": "page",
+          "source": "query",
+          "typeName": "int",
+          "required": true
+        }
+      ],
+      "responses": [
+        {
+          "statusCode": 200,
+          "typeName": "Task\u003CActionResult\u003CList\u003COrderDto\u003E\u003E\u003E"
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Api/OrdersController.cs",
+        "line": 11
+      }
+    },
+    {
+      "id": "ep:orders:GET:/api/orders/{id}",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Api",
+      "verb": "GET",
+      "route": "/api/orders/{id}",
+      "normalizedRoute": "api/orders/{}",
+      "handler": "OrdersController.Get",
+      "parameters": [
+        {
+          "name": "id",
+          "source": "route",
+          "typeName": "Guid",
+          "required": true
+        }
+      ],
+      "responses": [
+        {
+          "statusCode": 200,
+          "typeName": "Task\u003CActionResult\u003COrderDto\u003E\u003E"
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Api/OrdersController.cs",
+        "line": 10
+      }
+    },
+    {
+      "id": "ep:orders:POST:/api/orders",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Api",
+      "verb": "POST",
+      "route": "/api/orders",
+      "normalizedRoute": "api/orders",
+      "handler": "OrdersController.Create",
+      "parameters": [
+        {
+          "name": "request",
+          "source": "body",
+          "typeName": "CreateOrderRequest",
+          "required": true
+        }
+      ],
+      "responses": [
+        {
+          "statusCode": 200,
+          "typeName": "Task\u003CActionResult\u003COrderDto\u003E\u003E"
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Api/OrdersController.cs",
+        "line": 12
+      }
+    }
+  ],
+  "clientMethods": [
+    {
+      "id": "cm:Billing.Client:IBillingApi.CreateInvoice",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Client",
+      "typeName": "IBillingApi",
+      "methodName": "CreateInvoice",
+      "signature": "Task\u003CInvoiceDto\u003E CreateInvoice([Body] CreateInvoiceRequest request)",
+      "verb": "POST",
+      "route": "/api/invoices",
+      "normalizedRoute": "api/invoices",
+      "strategy": "refit",
+      "confidence": "high",
+      "location": {
+        "path": "billing/src/Billing.Client/IBillingApi.cs",
+        "line": 8
+      }
+    },
+    {
+      "id": "cm:Customers.Client:CustomersClient.GetCustomerAsync",
+      "repo": "customers",
+      "projectId": "proj:customers/Customers.Client",
+      "typeName": "CustomersClient",
+      "methodName": "GetCustomerAsync",
+      "signature": "Task\u003CCustomerDto\u003E GetCustomerAsync(string key)",
+      "verb": "GET",
+      "route": "/api/customers/{}",
+      "normalizedRoute": "api/customers/{}",
+      "strategy": "generated",
+      "confidence": "high",
+      "location": {
+        "path": "customers/src/Customers.Client/CustomersClient.cs",
+        "line": 5
+      }
+    },
+    {
+      "id": "cm:Orders.Client:IOrdersClient.CreateAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "IOrdersClient",
+      "methodName": "CreateAsync",
+      "signature": "Task\u003COrderDto\u003E CreateAsync(CreateOrderRequest request)",
+      "verb": "POST",
+      "route": "/api/orders",
+      "normalizedRoute": "api/orders",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 7
+      }
+    },
+    {
+      "id": "cm:Orders.Client:IOrdersClient.GetOrderAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "IOrdersClient",
+      "methodName": "GetOrderAsync",
+      "signature": "Task\u003COrderDto\u003E GetOrderAsync(Guid id)",
+      "verb": "GET",
+      "route": "/api/orders/{id}",
+      "normalizedRoute": "api/orders/{}",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 5
+      }
+    },
+    {
+      "id": "cm:Orders.Client:IOrdersClient.ListAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "IOrdersClient",
+      "methodName": "ListAsync",
+      "signature": "Task\u003CList\u003COrderDto\u003E\u003E ListAsync(int page)",
+      "verb": "GET",
+      "route": "/api/orders?page={page}",
+      "normalizedRoute": "api/orders",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 6
+      }
+    },
+    {
+      "id": "cm:Orders.Client:OrdersClient.CreateAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "OrdersClient",
+      "methodName": "CreateAsync",
+      "signature": "Task\u003COrderDto\u003E CreateAsync(CreateOrderRequest request)",
+      "verb": "POST",
+      "route": "/api/orders",
+      "normalizedRoute": "api/orders",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 14
+      }
+    },
+    {
+      "id": "cm:Orders.Client:OrdersClient.GetOrderAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "OrdersClient",
+      "methodName": "GetOrderAsync",
+      "signature": "Task\u003COrderDto\u003E GetOrderAsync(Guid id)",
+      "verb": "GET",
+      "route": "/api/orders/{id}",
+      "normalizedRoute": "api/orders/{}",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 12
+      }
+    },
+    {
+      "id": "cm:Orders.Client:OrdersClient.ListAsync",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "typeName": "OrdersClient",
+      "methodName": "ListAsync",
+      "signature": "Task\u003CList\u003COrderDto\u003E\u003E ListAsync(int page)",
+      "verb": "GET",
+      "route": "/api/orders?page={page}",
+      "normalizedRoute": "api/orders",
+      "strategy": "configured-wrapper",
+      "confidence": "high",
+      "location": {
+        "path": "orders/src/Orders.Client/OrdersClient.cs",
+        "line": 13
+      }
+    }
+  ],
+  "callSites": [
+    {
+      "id": "cs:billing/Billing.Api:InvoiceBuilder.BuildAsync:10",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Api",
+      "containingMember": "InvoiceBuilder.BuildAsync",
+      "confidence": "medium",
+      "location": {
+        "path": "billing/src/Billing.Api/InvoiceBuilder.cs",
+        "line": 10
+      }
+    },
+    {
+      "id": "cs:billing/Billing.Api:InvoiceBuilder.BuildAsync:11",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Api",
+      "containingMember": "InvoiceBuilder.BuildAsync",
+      "confidence": "medium",
+      "location": {
+        "path": "billing/src/Billing.Api/InvoiceBuilder.cs",
+        "line": 11
+      }
+    },
+    {
+      "id": "cs:gateway/Gateway.Api:OrdersProxy.Create:10",
+      "repo": "gateway",
+      "projectId": "proj:gateway/Gateway.Api",
+      "containingMember": "OrdersProxy.Create",
+      "confidence": "medium",
+      "location": {
+        "path": "gateway/src/Gateway.Api/OrdersProxy.cs",
+        "line": 10
+      }
+    },
+    {
+      "id": "cs:gateway/Gateway.Api:OrdersProxy.List:9",
+      "repo": "gateway",
+      "projectId": "proj:gateway/Gateway.Api",
+      "containingMember": "OrdersProxy.List",
+      "confidence": "medium",
+      "location": {
+        "path": "gateway/src/Gateway.Api/OrdersProxy.cs",
+        "line": 9
+      }
+    },
+    {
+      "id": "cs:orders/Orders.Api:InvoiceNotifier.NotifyAsync:7",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Api",
+      "containingMember": "InvoiceNotifier.NotifyAsync",
+      "confidence": "medium",
+      "location": {
+        "path": "orders/src/Orders.Api/InvoiceNotifier.cs",
+        "line": 7
+      }
+    }
+  ],
+  "models": [
+    {
+      "id": "model:Billing.Client:Acme.Billing.Client.CreateInvoiceRequest",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Client",
+      "fullName": "Acme.Billing.Client.CreateInvoiceRequest",
+      "kind": "record",
+      "fields": [
+        {
+          "name": "OrderId",
+          "typeName": "Guid",
+          "nullable": false,
+          "collection": false
+        }
+      ],
+      "location": {
+        "path": "billing/src/Billing.Client/IBillingApi.cs",
+        "line": 11
+      }
+    },
+    {
+      "id": "model:Billing.Client:Acme.Billing.Client.InvoiceDto",
+      "repo": "billing",
+      "projectId": "proj:billing/Billing.Client",
+      "fullName": "Acme.Billing.Client.InvoiceDto",
+      "kind": "record",
+      "fields": [
+        {
+          "name": "Id",
+          "typeName": "Guid",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Total",
+          "typeName": "decimal",
+          "nullable": false,
+          "collection": false
+        }
+      ],
+      "location": {
+        "path": "billing/src/Billing.Client/IBillingApi.cs",
+        "line": 12
+      }
+    },
+    {
+      "id": "model:Customers.Client:Acme.Customers.Client.CustomerDto",
+      "repo": "customers",
+      "projectId": "proj:customers/Customers.Client",
+      "fullName": "Acme.Customers.Client.CustomerDto",
+      "kind": "class",
+      "fields": [
+        {
+          "name": "Id",
+          "typeName": "Guid",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Name",
+          "typeName": "string",
+          "nullable": false,
+          "collection": false
+        }
+      ],
+      "location": {
+        "path": "customers/src/Customers.Client/CustomerDto.cs",
+        "line": 3
+      }
+    },
+    {
+      "id": "model:Orders.Client:Acme.Orders.Client.CreateOrderRequest",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "fullName": "Acme.Orders.Client.CreateOrderRequest",
+      "kind": "record",
+      "fields": [
+        {
+          "name": "CustomerId",
+          "typeName": "Guid",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Lines",
+          "typeName": "List\u003COrderLineDto\u003E",
+          "nullable": false,
+          "collection": true
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Client/Models.cs",
+        "line": 23
+      }
+    },
+    {
+      "id": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "fullName": "Acme.Orders.Client.OrderDto",
+      "kind": "class",
+      "fields": [
+        {
+          "name": "Id",
+          "typeName": "Guid",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Status",
+          "typeName": "OrderStatus",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Customer",
+          "typeName": "CustomerDto?",
+          "nullable": true,
+          "collection": false
+        },
+        {
+          "name": "Lines",
+          "typeName": "List\u003COrderLineDto\u003E",
+          "nullable": false,
+          "collection": true
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Client/Models.cs",
+        "line": 6
+      }
+    },
+    {
+      "id": "model:Orders.Client:Acme.Orders.Client.OrderLineDto",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "fullName": "Acme.Orders.Client.OrderLineDto",
+      "kind": "class",
+      "fields": [
+        {
+          "name": "Sku",
+          "typeName": "string",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Qty",
+          "typeName": "int",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "UnitPrice",
+          "typeName": "Money",
+          "nullable": false,
+          "collection": false
+        }
+      ],
+      "location": {
+        "path": "orders/src/Orders.Client/Models.cs",
+        "line": 14
+      }
+    },
+    {
+      "id": "model:Orders.Client:Acme.Orders.Client.OrderStatus",
+      "repo": "orders",
+      "projectId": "proj:orders/Orders.Client",
+      "fullName": "Acme.Orders.Client.OrderStatus",
+      "kind": "enum",
+      "fields": [],
+      "enumValues": [
+        "Pending",
+        "Paid",
+        "Shipped"
+      ],
+      "location": {
+        "path": "orders/src/Orders.Client/Models.cs",
+        "line": 21
+      }
+    },
+    {
+      "id": "model:Shared.Kernel:Acme.Shared.Money",
+      "repo": "shared",
+      "projectId": "proj:shared/Shared.Kernel",
+      "fullName": "Acme.Shared.Money",
+      "kind": "record",
+      "fields": [
+        {
+          "name": "Amount",
+          "typeName": "decimal",
+          "nullable": false,
+          "collection": false
+        },
+        {
+          "name": "Currency",
+          "typeName": "string",
+          "nullable": false,
+          "collection": false
+        }
+      ],
+      "location": {
+        "path": "shared/src/Shared.Kernel/Money.cs",
+        "line": 3
+      }
+    }
+  ],
+  "edges": [
+    {
+      "kind": "references",
+      "from": "proj:billing/Billing.Api",
+      "to": "pkg:Customers.Client",
+      "confidence": "certain",
+      "version": "2.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:billing/Billing.Api",
+      "to": "pkg:Orders.Client",
+      "confidence": "certain",
+      "version": "3.2.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:billing/Billing.Client",
+      "to": "pkg:Refit",
+      "confidence": "certain",
+      "version": "7.2.1"
+    },
+    {
+      "kind": "references",
+      "from": "proj:gateway/Gateway.Api",
+      "to": "pkg:Orders.Client",
+      "confidence": "certain",
+      "version": "3.4.1"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Api",
+      "to": "pkg:Billing.Client",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Api",
+      "to": "pkg:Shared.Kernel",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Client",
+      "to": "pkg:Acme.Http",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Client",
+      "to": "pkg:Customers.Client",
+      "confidence": "certain",
+      "version": "2.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Client",
+      "to": "pkg:Shared.Kernel",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "references",
+      "from": "proj:orders/Orders.Tests",
+      "to": "pkg:Microsoft.NET.Test.Sdk",
+      "confidence": "certain",
+      "version": "17.11.0"
+    },
+    {
+      "kind": "produces",
+      "from": "proj:billing/Billing.Client",
+      "to": "pkg:Billing.Client",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "produces",
+      "from": "proj:customers/Customers.Client",
+      "to": "pkg:Customers.Client",
+      "confidence": "certain",
+      "version": "2.0.0"
+    },
+    {
+      "kind": "produces",
+      "from": "proj:orders/Orders.Client",
+      "to": "pkg:Orders.Client",
+      "confidence": "certain",
+      "version": "3.4.1"
+    },
+    {
+      "kind": "produces",
+      "from": "proj:shared/Shared.Kernel",
+      "to": "pkg:Shared.Kernel",
+      "confidence": "certain",
+      "version": "1.0.0"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Billing.Client:IBillingApi.CreateInvoice",
+      "to": "ep:billing:POST:/api/invoices",
+      "confidence": "high",
+      "strategy": "refit"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Customers.Client:CustomersClient.GetCustomerAsync",
+      "to": "ep:customers:GET:/api/customers/{id:guid}",
+      "confidence": "low",
+      "strategy": "generated"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Customers.Client:CustomersClient.GetCustomerAsync",
+      "to": "ep:customers:GET:/api/customers/{slug}",
+      "confidence": "low",
+      "strategy": "generated"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:IOrdersClient.CreateAsync",
+      "to": "ep:orders:POST:/api/orders",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:IOrdersClient.GetOrderAsync",
+      "to": "ep:orders:GET:/api/orders/{id}",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:IOrdersClient.ListAsync",
+      "to": "ep:orders:GET:/api/orders",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:OrdersClient.CreateAsync",
+      "to": "ep:orders:POST:/api/orders",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:OrdersClient.GetOrderAsync",
+      "to": "ep:orders:GET:/api/orders/{id}",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "targets",
+      "from": "cm:Orders.Client:OrdersClient.ListAsync",
+      "to": "ep:orders:GET:/api/orders",
+      "confidence": "high",
+      "strategy": "configured-wrapper"
+    },
+    {
+      "kind": "invokes",
+      "from": "cs:billing/Billing.Api:InvoiceBuilder.BuildAsync:10",
+      "to": "cm:Orders.Client:IOrdersClient.GetOrderAsync",
+      "confidence": "medium"
+    },
+    {
+      "kind": "invokes",
+      "from": "cs:billing/Billing.Api:InvoiceBuilder.BuildAsync:11",
+      "to": "cm:Customers.Client:CustomersClient.GetCustomerAsync",
+      "confidence": "medium"
+    },
+    {
+      "kind": "invokes",
+      "from": "cs:gateway/Gateway.Api:OrdersProxy.Create:10",
+      "to": "cm:Orders.Client:IOrdersClient.CreateAsync",
+      "confidence": "medium"
+    },
+    {
+      "kind": "invokes",
+      "from": "cs:gateway/Gateway.Api:OrdersProxy.List:9",
+      "to": "cm:Orders.Client:IOrdersClient.ListAsync",
+      "confidence": "medium"
+    },
+    {
+      "kind": "invokes",
+      "from": "cs:orders/Orders.Api:InvoiceNotifier.NotifyAsync:7",
+      "to": "cm:Billing.Client:IBillingApi.CreateInvoice",
+      "confidence": "medium"
+    },
+    {
+      "kind": "accepts",
+      "from": "ep:billing:POST:/api/invoices",
+      "to": "model:Billing.Client:Acme.Billing.Client.CreateInvoiceRequest",
+      "confidence": "high",
+      "source": "body"
+    },
+    {
+      "kind": "accepts",
+      "from": "ep:orders:POST:/api/orders",
+      "to": "model:Orders.Client:Acme.Orders.Client.CreateOrderRequest",
+      "confidence": "high",
+      "source": "body"
+    },
+    {
+      "kind": "returns",
+      "from": "ep:billing:POST:/api/invoices",
+      "to": "model:Billing.Client:Acme.Billing.Client.InvoiceDto",
+      "confidence": "high",
+      "statusCode": 200
+    },
+    {
+      "kind": "returns",
+      "from": "ep:orders:GET:/api/orders",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "confidence": "high",
+      "statusCode": 200
+    },
+    {
+      "kind": "returns",
+      "from": "ep:orders:GET:/api/orders/{id}",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "confidence": "high",
+      "statusCode": 200
+    },
+    {
+      "kind": "returns",
+      "from": "ep:orders:POST:/api/orders",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "confidence": "high",
+      "statusCode": 200
+    },
+    {
+      "kind": "fieldOf",
+      "from": "model:Orders.Client:Acme.Orders.Client.CreateOrderRequest",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderLineDto",
+      "confidence": "high",
+      "fieldName": "Lines"
+    },
+    {
+      "kind": "fieldOf",
+      "from": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "to": "model:Customers.Client:Acme.Customers.Client.CustomerDto",
+      "confidence": "high",
+      "fieldName": "Customer"
+    },
+    {
+      "kind": "fieldOf",
+      "from": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderLineDto",
+      "confidence": "high",
+      "fieldName": "Lines"
+    },
+    {
+      "kind": "fieldOf",
+      "from": "model:Orders.Client:Acme.Orders.Client.OrderDto",
+      "to": "model:Orders.Client:Acme.Orders.Client.OrderStatus",
+      "confidence": "high",
+      "fieldName": "Status"
+    },
+    {
+      "kind": "fieldOf",
+      "from": "model:Orders.Client:Acme.Orders.Client.OrderLineDto",
+      "to": "model:Shared.Kernel:Acme.Shared.Money",
+      "confidence": "high",
+      "fieldName": "UnitPrice"
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:billing",
+      "to": "repo:customers",
+      "confidence": "certain",
+      "viaPackages": [
+        "Customers.Client"
+      ],
+      "callCount": 1
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:billing",
+      "to": "repo:orders",
+      "confidence": "certain",
+      "viaPackages": [
+        "Orders.Client"
+      ],
+      "callCount": 1
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:gateway",
+      "to": "repo:orders",
+      "confidence": "certain",
+      "viaPackages": [
+        "Orders.Client"
+      ],
+      "callCount": 2
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:orders",
+      "to": "repo:billing",
+      "confidence": "certain",
+      "viaPackages": [
+        "Billing.Client"
+      ],
+      "callCount": 1
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:orders",
+      "to": "repo:customers",
+      "confidence": "certain",
+      "viaPackages": [
+        "Customers.Client"
+      ],
+      "callCount": 0
+    },
+    {
+      "kind": "dependsOn",
+      "from": "repo:orders",
+      "to": "repo:shared",
+      "confidence": "certain",
+      "viaPackages": [
+        "Shared.Kernel"
+      ],
+      "callCount": 0
+    }
+  ],
+  "diagnostics": [
+    {
+      "kind": "ambiguousRoute",
+      "severity": "warning",
+      "nodeIds": [
+        "cm:Customers.Client:CustomersClient.GetCustomerAsync",
+        "ep:customers:GET:/api/customers/{id:guid}",
+        "ep:customers:GET:/api/customers/{slug}"
+      ],
+      "message": "cm:Customers.Client:CustomersClient.GetCustomerAsync (GET /api/customers/{}) matches 2 endpoints: ep:customers:GET:/api/customers/{id:guid}, ep:customers:GET:/api/customers/{slug}"
+    },
+    {
+      "kind": "cycle",
+      "severity": "warning",
+      "nodeIds": [
+        "repo:billing",
+        "repo:orders"
+      ],
+      "message": "Circular dependency: billing \u2192 orders \u2192 billing"
+    },
+    {
+      "kind": "parseError",
+      "severity": "info",
+      "nodeIds": [
+        "repo:billing"
+      ],
+      "message": "billing/src/Billing.Api/Broken.cs: line 3: ) expected"
+    },
+    {
+      "kind": "unusedEndpoint",
+      "severity": "info",
+      "nodeIds": [
+        "ep:orders:DELETE:/api/orders/{id}"
+      ],
+      "message": "DELETE /api/orders/{id} (OrdersController.Delete) is not called by any client method"
+    },
+    {
+      "kind": "versionDrift",
+      "severity": "warning",
+      "nodeIds": [
+        "pkg:Orders.Client",
+        "proj:billing/Billing.Api"
+      ],
+      "message": "Orders.Client: latest 3.4.1; behind: proj:billing/Billing.Api (3.2.0)"
+    }
+  ]
+}

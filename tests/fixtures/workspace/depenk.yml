@@ -1,0 +1,4 @@
+httpWrappers:
+  - type: "*.IApiHttpClient"
+    methods: { "Get*": GET, "Post*": POST, "Put*": PUT, "Delete*": DELETE }
+    routeArgument: 0
