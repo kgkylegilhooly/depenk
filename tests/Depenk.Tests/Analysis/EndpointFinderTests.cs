@@ -200,4 +200,46 @@ public class EndpointFinderTests
             """)));
         Assert.Equal("/x", eps.Single().Route);
     }
+
+    [Fact]
+    public void RouteInheritedFromBaseController_AbstractNonActionAndStaticSkipped()
+    {
+        var eps = new ControllerEndpointFinder().Find(Src.Set(
+            ("orders/src/Orders.Api/Base.cs", """
+                using Microsoft.AspNetCore.Mvc;
+                namespace Acme;
+                [ApiController, Route("api/v1/[controller]")]
+                public abstract class ApiControllerBase : ControllerBase
+                {
+                    [HttpGet("health")] public string Health() => "";
+                }
+                public class MiddleController : ApiControllerBase { }
+                """),
+            ("orders/src/Orders.Api/Orders.cs", """
+                using Microsoft.AspNetCore.Mvc;
+                namespace Acme;
+                public class OrdersController : MiddleController
+                {
+                    [HttpGet("{id}")] public string Get(int id) => "";
+                    [NonAction, HttpGet("hidden")] public string Hidden() => "";
+                    [HttpGet("static")] public static string Static() => "";
+                }
+                public class Things : ApiControllerBase
+                {
+                    [HttpPost] public void Create() { }
+                }
+                [Route("own")]
+                public class OwnController : ApiControllerBase
+                {
+                    [HttpGet] public string List() => "";
+                }
+                """)))
+            .Select(e => $"{e.Verb} {e.Route} {e.Handler}").Order().ToList();
+
+        Assert.Equal([
+            "GET /api/v1/orders/{id} OrdersController.Get",
+            "GET /own OwnController.List",
+            "POST /api/v1/things Things.Create",
+        ], eps);
+    }
 }

@@ -17,16 +17,27 @@ public sealed class ControllerEndpointFinder : IEndpointFinder
 
     public IEnumerable<EndpointNode> Find(SourceSet src)
     {
-        foreach (var (doc, cls) in src.All<ClassDeclarationSyntax>())
+        var classes = src.All<ClassDeclarationSyntax>().ToList();
+        var byName = classes.ToLookup(c => c.Node.Identifier.Text, c => c.Node, StringComparer.Ordinal);
+
+        foreach (var (doc, cls) in classes)
         {
-            if (!IsController(cls)) continue;
+            // abstract controllers are not endpoints themselves, but still lend their [Route] to derived classes
+            if (cls.Modifiers.Any(SyntaxKind.AbstractKeyword)) continue;
+            var bases = BaseChain(cls, byName);
+            if (!IsController(cls) && !bases.Any(IsController)) continue;
             var className = cls.Identifier.Text;
-            var classRoute = Attrs(cls).Where(a => AttrName(a) == "Route").Select(FirstStringArg).FirstOrDefault();
+            // [Route] is inherited: use the nearest class in the chain (self first) that declares one;
+            // [controller] still expands to the derived class name.
+            var classRoute = new[] { cls }.Concat(bases)
+                .Select(c => Attrs(c).Where(a => AttrName(a) == "Route").Select(FirstStringArg).FirstOrDefault(r => r is not null))
+                .FirstOrDefault(r => r is not null);
 
             foreach (var m in cls.Members.OfType<MethodDeclarationSyntax>())
             {
-                if (!m.Modifiers.Any(SyntaxKind.PublicKeyword)) continue;
+                if (!m.Modifiers.Any(SyntaxKind.PublicKeyword) || m.Modifiers.Any(SyntaxKind.StaticKeyword)) continue;
                 var attrs = Attrs(m).ToList();
+                if (attrs.Any(a => AttrName(a) == "NonAction")) continue;
                 var methodRoute = attrs.Where(a => AttrName(a) == "Route").Select(FirstStringArg).FirstOrDefault();
                 foreach (var verbAttr in attrs.Where(a => VerbAttrs.ContainsKey(AttrName(a))))
                 {
@@ -46,6 +57,31 @@ public sealed class ControllerEndpointFinder : IEndpointFinder
             }
         }
     }
+
+    /// <summary>Base classes declared in the same source set, nearest first (cycle-safe).</summary>
+    private static List<ClassDeclarationSyntax> BaseChain(ClassDeclarationSyntax cls, ILookup<string, ClassDeclarationSyntax> byName)
+    {
+        var chain = new List<ClassDeclarationSyntax>();
+        var seen = new HashSet<ClassDeclarationSyntax> { cls };
+        for (var current = cls; ;)
+        {
+            var next = current.BaseList?.Types.Select(t => SimpleName(t.Type))
+                .Select(n => n is null ? null : byName[n].FirstOrDefault())
+                .FirstOrDefault(c => c is not null);
+            if (next is null || !seen.Add(next)) return chain;
+            chain.Add(next);
+            current = next;
+        }
+    }
+
+    private static string? SimpleName(TypeSyntax t) => t switch
+    {
+        QualifiedNameSyntax q => SimpleName(q.Right),
+        AliasQualifiedNameSyntax a => SimpleName(a.Name),
+        GenericNameSyntax g => g.Identifier.Text,
+        IdentifierNameSyntax i => i.Identifier.Text,
+        _ => null,
+    };
 
     private static bool IsController(ClassDeclarationSyntax c) =>
         c.Identifier.Text.EndsWith("Controller", StringComparison.Ordinal)
