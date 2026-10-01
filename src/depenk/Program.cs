@@ -23,10 +23,11 @@ scan.SetHandler(ctx =>
     try
     {
         var sw = Stopwatch.StartNew();
+        var manifest = WorkspaceManifest.Compute(ws); // before the scan: edits made during it stay detectable
         var graph = new ScanOrchestrator().Scan(ws);
         var path = ScanOrchestrator.GraphPath(ws);
         GraphJson.Save(graph, path);
-        WorkspaceManifest.Save(ws, WorkspaceManifest.Compute(ws));
+        WorkspaceManifest.Save(ws, manifest);
         var warnings = graph.Diagnostics.Count(d => d.Severity == "warning");
         Console.WriteLine(
             $"Scanned {graph.Repos.Count} repos, {graph.Projects.Count} projects: " +

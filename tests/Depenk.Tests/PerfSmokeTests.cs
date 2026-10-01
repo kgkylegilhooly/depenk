@@ -32,7 +32,6 @@ public class PerfSmokeTests(ITestOutputHelper output)
         var incremental = sw.Elapsed;
 
         output.WriteLine($"full={full.TotalSeconds:F1}s incremental={incremental.TotalSeconds:F2}s");
-        Console.WriteLine($"PERF full={full.TotalSeconds:F1}s incremental={incremental.TotalSeconds:F2}s");
         Assert.True(full < TimeSpan.FromSeconds(60), $"full scan took {full}");
         Assert.True(incremental < TimeSpan.FromSeconds(2), $"incremental rescan took {incremental}");
     }

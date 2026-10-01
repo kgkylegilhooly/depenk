@@ -43,6 +43,44 @@ public class IncrementalScanTests
     }
 
     [Fact]
+    public void Manifest_MixedCaseNames_AreUpToDateAfterSave()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        ws.File("orders/src/Orders.Api/Zebra.cs", "namespace Z; public class Zebra {}");
+        ws.File("orders/src/Orders.Api/apple.cs", "namespace Z; public class Apple {}");
+        GraphJson.Save(new ScanOrchestrator().Scan(ws.Root), ScanOrchestrator.GraphPath(ws.Root));
+        WorkspaceManifest.Save(ws.Root, WorkspaceManifest.Compute(ws.Root));
+        Assert.True(WorkspaceManifest.IsUpToDate(ws.Root));
+    }
+
+    [Fact]
+    public void Manifest_UnreadableGraphOrManifest_IsNotUpToDate()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        GraphJson.Save(new ScanOrchestrator().Scan(ws.Root), ScanOrchestrator.GraphPath(ws.Root));
+        WorkspaceManifest.Save(ws.Root, WorkspaceManifest.Compute(ws.Root));
+        using var locked = new FileStream(WorkspaceManifest.ManifestPath(ws.Root), FileMode.Open, FileAccess.Read, FileShare.None);
+        Assert.False(WorkspaceManifest.IsUpToDate(ws.Root));
+    }
+
+    [Fact]
+    public void Rescan_ReanalyzesOnlyChangedProject()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        var orchestrator = new ScanOrchestrator(new ParseCache());
+        orchestrator.Scan(ws.Root);
+        var projects = orchestrator.AnalyzedProjectCount;
+        Assert.True(projects > 1);
+
+        orchestrator.Scan(ws.Root);
+        Assert.Equal(projects, orchestrator.AnalyzedProjectCount);
+
+        ws.File("orders/src/Orders.Api/CancelController.cs", "namespace Acme.Orders.Api; public class CancelController {}");
+        orchestrator.Scan(ws.Root);
+        Assert.Equal(projects + 1, orchestrator.AnalyzedProjectCount);
+    }
+
+    [Fact]
     public void Manifest_KeysArePortable()
     {
         using var ws = FixtureScanTests.CopyFixture();

@@ -44,9 +44,15 @@ public static class WorkspaceManifest
         if (!File.Exists(path) || !File.Exists(ScanOrchestrator.GraphPath(workspace))) return false;
         try
         {
-            var saved = JsonSerializer.Deserialize<SortedDictionary<string, string>>(File.ReadAllText(path));
-            return saved is not null && saved.SequenceEqual(Compute(workspace));
+            var saved = JsonSerializer.Deserialize<Dictionary<string, string>>(File.ReadAllText(path));
+            if (saved is null) return false;
+            var current = Compute(workspace);
+            return saved.Count == current.Count
+                && current.All(kv => saved.TryGetValue(kv.Key, out var v) && string.Equals(v, kv.Value, StringComparison.Ordinal));
         }
-        catch (JsonException) { return false; } // a corrupt manifest forces a rescan
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            return false; // a corrupt or unreadable manifest/workspace forces a rescan
+        }
     }
 }

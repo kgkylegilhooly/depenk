@@ -20,6 +20,9 @@ public sealed class ScanOrchestrator
     private readonly ParseCache _cache;
     private readonly Dictionary<string, (string Key, List<EndpointNode> Endpoints, ClientScanResult Clients)> _analysis = [];
 
+    /// <summary>Cumulative number of project analyses actually computed (cache misses).</summary>
+    public int AnalyzedProjectCount { get; private set; }
+
     public ScanOrchestrator(ParseCache? cache = null) => _cache = cache ?? new ParseCache();
 
     public DepGraph Scan(string workspace)
@@ -63,6 +66,7 @@ public sealed class ScanOrchestrator
                     test ? [] : endpointFinders.SelectMany(f => f.Find(src)).ToList(),
                     test ? new ClientScanResult([], false) : clientFinder.Find(src));
                 _analysis[p.Id] = cached;
+                AnalyzedProjectCount++;
             }
             endpoints[p.Id] = cached.Endpoints;
             clients[p.Id] = cached.Clients;
