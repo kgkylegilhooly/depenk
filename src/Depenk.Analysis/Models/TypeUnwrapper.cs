@@ -3,7 +3,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace Depenk.Analysis.Models;
 
-public sealed record TypeRef(string Name, bool Collection);
+public sealed record TypeRef(string Name, bool Collection, int Arity = 0);
 
 public static class TypeUnwrapper
 {
@@ -47,7 +47,7 @@ public static class TypeUnwrapper
                 else if (Dictionaries.Contains(name)) { if (args.Count == 2) Walk(args[1], true, acc); }
                 else
                 {
-                    acc.Add(new TypeRef(name, collection));
+                    acc.Add(new TypeRef(name, collection, args.Count));
                     foreach (var a in args) Walk(a, collection, acc);
                 }
                 break;

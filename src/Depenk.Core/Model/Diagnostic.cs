@@ -8,5 +8,5 @@ public static class DiagnosticKinds
         AmbiguousRoute = "ambiguousRoute", AmbiguousProducer = "ambiguousProducer",
         UnresolvedVersion = "unresolvedVersion", Cycle = "cycle", UnusedEndpoint = "unusedEndpoint",
         UnusedModel = "unusedModel", UnusedClientMethod = "unusedClientMethod", ParseError = "parseError",
-        DuplicateProjectName = "duplicateProjectName";
+        DuplicateProjectName = "duplicateProjectName", AmbiguousModel = "ambiguousModel";
 }

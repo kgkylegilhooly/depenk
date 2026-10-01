@@ -108,4 +108,115 @@ public class ModelExtractorTests
         Assert.Equal(g.Models.Count, g.Models.Select(m => m.Id).Distinct().Count());
         Assert.Equal(g.Edges.Count, g.Edges.Distinct().Count());
     }
+
+    private static DepGraph RunSets(int maxDepth, string[] controllerCode, params SourceSet[] others)
+    {
+        var api = Src.SetFor("r", "Api", ("r/Api/C.cs", string.Join("\n", controllerCode)));
+        var g = new DepGraph();
+        g.Endpoints.AddRange(new ControllerEndpointFinder().Find(api));
+        new ModelExtractor([api, .. others], _ => [], maxDepth).Extract(g, new HashSet<string>());
+        return g;
+    }
+
+    private const string Ctl = """
+        namespace A;
+        [Route("x")] public class XController : ControllerBase
+        {
+            [HttpGet("one")] public OrderDto One() => null!;
+        }
+        """;
+
+    [Fact]
+    public void AmbiguousTypeName_IsLowConfidence_WithOneDiagnostic()
+    {
+        var s1 = Src.SetFor("r", "S1", ("r/S1/O.cs", "namespace A.One; public class OrderDto { public int X {get;set;} }"));
+        var s2 = Src.SetFor("r", "S2", ("r/S2/O.cs", "namespace A.Two; public class OrderDto { public int Y {get;set;} }"));
+        var g = RunSets(6, [Ctl], s1, s2);
+        var ret = Assert.Single(g.EdgesOf(EdgeKind.Returns));
+        Assert.Equal(Confidence.Low, ret.Confidence);
+        Assert.Equal("model:S1:A.One.OrderDto", ret.To);
+        var d = Assert.Single(g.Diagnostics, x => x.Kind == DiagnosticKinds.AmbiguousModel);
+        Assert.Equal(["model:S1:A.One.OrderDto", "model:S2:A.Two.OrderDto"], d.NodeIds);
+    }
+
+    [Fact]
+    public void PartialClasses_AreMerged()
+    {
+        var s1 = Src.SetFor("r", "S1",
+            ("r/S1/B.cs", "namespace A; public partial class OrderDto { public int B {get;set;} }"),
+            ("r/S1/A.cs", "namespace A; public partial class OrderDto { public int A {get;set;} }"));
+        var g = RunSets(6, [Ctl], s1);
+        var m = Assert.Single(g.Models, x => x.FullName == "A.OrderDto");
+        Assert.Equal(["A", "B"], m.Fields.Select(f => f.Name));
+        Assert.Equal("r/S1/A.cs", m.Location!.Path);
+    }
+
+    [Fact]
+    public void Generics_TypeParametersAreNotModels_AndArityDisambiguates()
+    {
+        var s1 = Src.SetFor("r", "S1", ("r/S1/R.cs", """
+            namespace A;
+            public class Result { public int Z {get;set;} }
+            public class Result<T> { public T Data {get;set;} public List<T> Items {get;set;} }
+            public class OrderDto { public Result<int> Typed {get;set;} public Result Plain {get;set;} }
+            """));
+        var g = RunSets(6, [Ctl], s1);
+        Assert.DoesNotContain(g.Models, m => m.Id == "model:?:T");
+        Assert.Contains(g.Models, m => m.Id == "model:S1:A.Result");
+        Assert.Contains(g.Models, m => m.Id == "model:S1:A.Result`1");
+        Assert.Empty(g.Diagnostics);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public void DepthCutoff_DoesNotDependOnTraversalOrder(bool deepFirst)
+    {
+        // Deep -> Mid -> Leaf -> Tail. maxDepth 3 cuts Leaf off when reached via Deep (depth 3);
+        // Leaf reached directly from an endpoint (depth 1) must still expand.
+        var ctl = """
+            namespace A;
+            [Route("x")] public class XController : ControllerBase
+            {
+            """
+            + (deepFirst
+                ? "[HttpGet(\"a\")] public Deep A() => null!; [HttpGet(\"b\")] public Leaf B() => null!;"
+                : "[HttpGet(\"b\")] public Leaf B() => null!; [HttpGet(\"a\")] public Deep A() => null!;")
+            + "}";
+        var s1 = Src.SetFor("r", "S1", ("r/S1/M.cs", """
+            namespace A;
+            public class Deep { public Mid M {get;set;} }
+            public class Mid { public Leaf L {get;set;} }
+            public class Leaf { public Tail T {get;set;} }
+            public class Tail { public int V {get;set;} }
+            """));
+        var g = RunSets(3, [ctl], s1);
+        Assert.Contains(g.EdgesOf(EdgeKind.FieldOf), e => e.From == "model:S1:A.Leaf" && e.To == "model:S1:A.Tail");
+    }
+
+    [Fact]
+    public void Resolution_IsIndependentOfSourceOrder()
+    {
+        var s1 = Src.SetFor("r", "S1", ("r/S1/O.cs", "namespace A.One; public class OrderDto { }"));
+        var s2 = Src.SetFor("r", "S2", ("r/S2/O.cs", "namespace A.Two; public class OrderDto { }"));
+        var a = new TypeIndex([s1, s2]).Resolve("OrderDto", "proj:r/Api", []);
+        var b = new TypeIndex([s2, s1]).Resolve("OrderDto", "proj:r/Api", []);
+        Assert.Equal("A.One.OrderDto", a!.FullName);
+        Assert.Equal("A.One.OrderDto", b!.FullName);
+    }
+
+    [Fact]
+    public void DottedBase_AndPositionalPlusExplicitProperty()
+    {
+        var s1 = Src.SetFor("r", "S1", ("r/S1/O.cs", """
+            namespace A;
+            public class EntityBase { public int Id {get;set;} }
+            public class OrderDto : Ns.EntityBase { public int Own {get;set;} }
+            """), ("r/S1/P.cs", "namespace A; public record Pos(int Q) { public int Q { get; init; } }"));
+        var g = RunSets(6, [Ctl], s1);
+        Assert.Equal(["Own", "Id"], M(g, "A.OrderDto").Fields.Select(f => f.Name));
+        var other = new DepGraph();
+        new ModelExtractor([s1], _ => []).Extract(other, new HashSet<string> { "proj:r/S1" });
+        Assert.Single(other.Models.Single(m => m.FullName == "A.Pos").Fields);
+    }
 }
