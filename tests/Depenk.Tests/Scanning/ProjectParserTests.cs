@@ -106,4 +106,39 @@ public class ProjectParserTests
         var ex = Assert.Throws<ProjectParseException>(() => ProjectParser.Parse(P(ws, "r/Bad/Bad.csproj"), P(ws, "r")));
         Assert.Contains("Bad.csproj", ex.Message);
     }
+
+    [Fact]
+    public void TestSdk_FromDirectoryBuildProps_MarksTestProject()
+    {
+        using var ws = new TempWorkspace()
+            .File("r/test/Directory.Build.props", """
+                <Project><ItemGroup><PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" /></ItemGroup></Project>
+                """)
+            .File("r/test/Checks/Checks.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />")
+            .File("r/src/Lib/Lib.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+
+        Assert.True(ProjectParser.Parse(P(ws, "r/test/Checks/Checks.csproj"), P(ws, "r")).IsTestProject);
+        Assert.False(ProjectParser.Parse(P(ws, "r/src/Lib/Lib.csproj"), P(ws, "r")).IsTestProject);
+    }
+
+    [Theory]
+    [InlineData("Orders.Tests", true)]
+    [InlineData("Orders.UnitTests", true)]
+    [InlineData("Orders.IntegrationTests", true)]
+    [InlineData("Orders.Test", true)]
+    [InlineData("Orders.Testing", false)]
+    [InlineData("Orders.Api", false)]
+    public void TestNameHeuristic(string name, bool expected)
+    {
+        using var ws = new TempWorkspace().File($"r/{name}/{name}.csproj", "<Project Sdk=\"Microsoft.NET.Sdk\" />");
+        Assert.Equal(expected, ProjectParser.Parse(P(ws, $"r/{name}/{name}.csproj"), P(ws, "r")).IsTestProject);
+    }
+
+    [Fact]
+    public void TestNameHeuristic_ExplicitIsTestProjectFalse_Wins()
+    {
+        using var ws = new TempWorkspace().File("r/Orders.Tests/Orders.Tests.csproj",
+            "<Project Sdk=\"Microsoft.NET.Sdk\"><PropertyGroup><IsTestProject>false</IsTestProject></PropertyGroup></Project>");
+        Assert.False(ProjectParser.Parse(P(ws, "r/Orders.Tests/Orders.Tests.csproj"), P(ws, "r")).IsTestProject);
+    }
 }

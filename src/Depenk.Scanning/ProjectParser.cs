@@ -5,6 +5,11 @@ namespace Depenk.Scanning;
 
 public static class ProjectParser
 {
+    private const string TestSdk = "Microsoft.NET.Test.Sdk";
+
+    /// <summary>Name fallback for test detection, unless the project says IsTestProject=false.</summary>
+    private static readonly string[] TestNameSuffixes = [".Tests", ".UnitTests", ".IntegrationTests", ".Test"];
+
     /// <summary>Malformed XML in the csproj or any props file becomes a ProjectParseException.</summary>
     public static ProjectFile Parse(string csprojPath, string repoRoot)
     {
@@ -15,7 +20,7 @@ public static class ProjectParser
     private static ProjectFile ParseCore(string csprojPath, string repoRoot)
     {
         var doc = XDocument.Load(csprojPath);
-        var (props, central) = PropsResolver.Collect(Path.GetDirectoryName(csprojPath)!, repoRoot);
+        var (props, central, propsPackageRefs) = PropsResolver.Collect(Path.GetDirectoryName(csprojPath)!, repoRoot);
         foreach (var (k, v) in PropsResolver.ReadProperties(doc)) props[k] = v; // project wins
 
         string? Prop(string name) => props.TryGetValue(name, out var v) && v.Length > 0 ? PropsResolver.Expand(v, props) : null;
@@ -46,8 +51,12 @@ public static class ProjectParser
                 p.Replace('\\', Path.DirectorySeparatorChar))))
             .ToList();
 
-        var isTest = string.Equals(Prop("IsTestProject"), "true", StringComparison.OrdinalIgnoreCase)
-                     || packageRefs.Any(r => r.Id.Equals("Microsoft.NET.Test.Sdk", StringComparison.OrdinalIgnoreCase));
+        var isTestProp = Prop("IsTestProject");
+        var isTest = string.Equals(isTestProp, "true", StringComparison.OrdinalIgnoreCase)
+                     || packageRefs.Any(r => r.Id.Equals(TestSdk, StringComparison.OrdinalIgnoreCase))
+                     || propsPackageRefs.Contains(TestSdk)
+                     || (!string.Equals(isTestProp, "false", StringComparison.OrdinalIgnoreCase)
+                         && TestNameSuffixes.Any(s => name.EndsWith(s, StringComparison.OrdinalIgnoreCase)));
         var packableProp = Prop("IsPackable");
         var isPackable = packableProp is not null
             ? packableProp.Equals("true", StringComparison.OrdinalIgnoreCase)
