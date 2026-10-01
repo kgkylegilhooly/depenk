@@ -73,4 +73,43 @@ public class CallSiteFinderTests
         var scan = CallSiteFinder.Find(Src.SetFor("billing", "Billing.Api", ("a.cs", Consumer)), []);
         Assert.Empty(scan.CallSites);
     }
+
+    [Fact]
+    public void AmbiguousFallback_IsLowWithDiagnostic()
+    {
+        var a = new ClientMethodNode("cm:A.Client:R0Client.Get", "a", "proj:a/A.Client", "R0Client", "Get", "",
+            "GET", "/x", "x", "refit", Confidence.High, Loc);
+        var b = a with { Id = "cm:B.Client:R0Client.Get", Repo = "b", ProjectId = "proj:b/B.Client" };
+
+        var scan = CallSiteFinder.Find(Src.SetFor("c", "C.Api", ("c.cs", """
+            using Unrelated.Stuff;
+            public class U(R0Client r)
+            {
+                public void M() { r.Get(); }
+            }
+            """)), [a, b]);
+
+        Assert.Equal(Confidence.Low, Assert.Single(scan.CallSites).Confidence);
+        Assert.Equal(2, scan.Invokes.Count);
+        Assert.All(scan.Invokes, e => Assert.Equal(Confidence.Low, e.Confidence));
+        var d = Assert.Single(scan.Diagnostics);
+        Assert.Equal(DiagnosticKinds.AmbiguousCallSite, d.Kind);
+        Assert.Equal("info", d.Severity);
+        Assert.Equal(3, d.NodeIds.Count);
+    }
+
+    [Fact]
+    public void GenericCall_IsFound_AndTwoCallsOnOneLineMakeOneSite()
+    {
+        var scan = CallSiteFinder.Find(Src.SetFor("billing", "Billing.Api", ("a.cs", """
+            public class P(IOrdersClient orders)
+            {
+                public void M() { orders.GetOrderAsync<int>(1); orders.ListAsync(2); orders.GetOrderAsync<int>(3); }
+            }
+            """)), [Cm("IOrdersClient", "GetOrderAsync"), Cm("IOrdersClient", "ListAsync")]);
+
+        Assert.Single(scan.CallSites);
+        Assert.Equal(2, scan.Invokes.Count);
+        Assert.Empty(scan.Diagnostics);
+    }
 }

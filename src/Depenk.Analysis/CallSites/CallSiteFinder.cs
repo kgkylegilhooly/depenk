@@ -3,10 +3,11 @@ using Depenk.Core.Model;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 using static Depenk.Analysis.SyntaxHelpers;
+using Diagnostic = Depenk.Core.Model.Diagnostic;
 
 namespace Depenk.Analysis.CallSites;
 
-public sealed record CallSiteScan(List<CallSiteNode> CallSites, List<Edge> Invokes);
+public sealed record CallSiteScan(List<CallSiteNode> CallSites, List<Edge> Invokes, List<Diagnostic> Diagnostics);
 
 public static class CallSiteFinder
 {
@@ -14,7 +15,10 @@ public static class CallSiteFinder
     {
         var sites = new Dictionary<string, CallSiteNode>();
         var edges = new List<Edge>();
-        if (reachableClientMethods.Count == 0) return new CallSiteScan([], []);
+        var seen = new HashSet<Edge>();
+        var diagnostics = new List<Diagnostic>();
+        var diagnosed = new HashSet<string>();
+        if (reachableClientMethods.Count == 0) return new CallSiteScan([], [], []);
         var byKey = reachableClientMethods.ToLookup(m => (m.TypeName, m.MethodName));
 
         foreach (var (doc, inv) in consumer.All<InvocationExpressionSyntax>())
@@ -33,19 +37,27 @@ public static class CallSiteFinder
             if (matches.Count == 0) continue;
             if (matches.Count > 1) matches = Disambiguate(matches, declared, doc);
 
+            var ambiguous = matches.Count > 1;
+            var conf = ambiguous ? Confidence.Low : Confidence.Medium;
             var (typeName, member) = Containing(inv);
             var line = Line(inv);
             var id = Ids.CallSite(consumer.Repo, consumer.ProjectName, typeName, member, line);
-            if (!sites.ContainsKey(id))
+            if (!sites.TryGetValue(id, out var site))
                 sites[id] = new CallSiteNode(id, consumer.Repo, consumer.ProjectId, $"{typeName}.{member}",
-                    Confidence.Medium, new SourceLocation(doc.RelativePath, line));
+                    conf, new SourceLocation(doc.RelativePath, line));
+            else if (ambiguous && site.Confidence != Confidence.Low)
+                sites[id] = site with { Confidence = Confidence.Low };
+            if (ambiguous && diagnosed.Add(id))
+                diagnostics.Add(new Diagnostic(DiagnosticKinds.AmbiguousCallSite, "info", [id, .. matches.Select(m => m.Id)],
+                    $"Call to {Normalize(declared)}.{name} could target several client packages: " +
+                    string.Join(", ", matches.Select(m => ProjectName(m))) + "."));
             foreach (var cm in matches)
             {
-                var edge = new Edge(EdgeKind.Invokes, id, cm.Id, Confidence.Medium);
-                if (!edges.Contains(edge)) edges.Add(edge);
+                var edge = new Edge(EdgeKind.Invokes, id, cm.Id, conf);
+                if (seen.Add(edge)) edges.Add(edge);
             }
         }
-        return new CallSiteScan([.. sites.Values], edges);
+        return new CallSiteScan([.. sites.Values], edges, diagnostics);
     }
 
     /// <summary>
