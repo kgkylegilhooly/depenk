@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.0" />
+    <ProjectReference Include="..\..\src\Orders.Api\Orders.Api.csproj" />
+  </ItemGroup>
+</Project>

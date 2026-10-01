@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+  <ItemGroup>
+    <PackageReference Include="Orders.Client" />
+    <PackageReference Include="Customers.Client" />
+    <ProjectReference Include="..\Billing.Client\Billing.Client.csproj" />
+  </ItemGroup>
+</Project>
