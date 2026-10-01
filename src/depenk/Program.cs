@@ -8,16 +8,25 @@ var workspaceOption = new Option<DirectoryInfo>(
     "--workspace", () => new DirectoryInfo(Directory.GetCurrentDirectory()),
     "Folder containing the local repo clones (default: current directory)");
 
-var scan = new Command("scan", "Scan the workspace and write .depenk/graph.json") { workspaceOption };
+var forceOption = new Option<bool>("--force", "Rescan even if nothing changed since the last scan");
+
+var scan = new Command("scan", "Scan the workspace and write .depenk/graph.json") { workspaceOption, forceOption };
 scan.SetHandler(ctx =>
 {
     var ws = ctx.ParseResult.GetValueForOption(workspaceOption)!.FullName;
+    if (!ctx.ParseResult.GetValueForOption(forceOption) && WorkspaceManifest.IsUpToDate(ws))
+    {
+        Console.WriteLine($"Graph is up to date ({Path.GetRelativePath(ws, ScanOrchestrator.GraphPath(ws))})");
+        ctx.ExitCode = 0;
+        return;
+    }
     try
     {
         var sw = Stopwatch.StartNew();
         var graph = new ScanOrchestrator().Scan(ws);
         var path = ScanOrchestrator.GraphPath(ws);
         GraphJson.Save(graph, path);
+        WorkspaceManifest.Save(ws, WorkspaceManifest.Compute(ws));
         var warnings = graph.Diagnostics.Count(d => d.Severity == "warning");
         Console.WriteLine(
             $"Scanned {graph.Repos.Count} repos, {graph.Projects.Count} projects: " +

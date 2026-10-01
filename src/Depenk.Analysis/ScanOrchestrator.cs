@@ -17,6 +17,11 @@ public sealed class ScanOrchestrator
 {
     public static string GraphPath(string workspace) => Path.Combine(workspace, ".depenk", "graph.json");
 
+    private readonly ParseCache _cache;
+    private readonly Dictionary<string, (string Key, List<EndpointNode> Endpoints, ClientScanResult Clients)> _analysis = [];
+
+    public ScanOrchestrator(ParseCache? cache = null) => _cache = cache ?? new ParseCache();
+
     public DepGraph Scan(string workspace)
     {
         workspace = Path.GetFullPath(workspace);
@@ -27,7 +32,20 @@ public sealed class ScanOrchestrator
         g.Repos.AddRange(repos.Select(r => new RepoNode(Ids.Repo(r.Name), r.Name, r.RelativePath, r.HeadSha, r.Dirty)));
         var projects = LoadProjects(workspace, repos, config, g);
 
-        var sources = projects.ToDictionary(p => p.Id, p => LoadSources(workspace, p, projects, g));
+        var loaded = new (SourceSet Set, List<Diagnostic> Diags)[projects.Count];
+        Parallel.For(0, projects.Count, i =>
+        {
+            var local = new DepGraph();
+            loaded[i] = (LoadSources(workspace, projects[i], projects, local, _cache), local.Diagnostics);
+        });
+        var sources = new Dictionary<string, SourceSet>();
+        for (var i = 0; i < projects.Count; i++)
+        {
+            sources[projects[i].Id] = loaded[i].Set;
+            g.Diagnostics.AddRange(loaded[i].Diags);
+        }
+        var configPath = Path.Combine(workspace, ConfigLoader.FileName);
+        var configHash = File.Exists(configPath) ? ParseCache.HashText(File.ReadAllText(configPath)) : "";
 
         IEndpointFinder[] endpointFinders = [new ControllerEndpointFinder(), new MinimalApiEndpointFinder()];
         var clientFinder = new ClientMethodFinder(config);
@@ -36,11 +54,20 @@ public sealed class ScanOrchestrator
         var kinds = new Dictionary<string, ProjectKind>();
         foreach (var p in projects)
         {
-            var test = p.File.IsTestProject;
-            endpoints[p.Id] = test ? [] : endpointFinders.SelectMany(f => f.Find(sources[p.Id])).ToList();
-            clients[p.Id] = test ? new ClientScanResult([], false) : clientFinder.Find(sources[p.Id]);
+            var src = sources[p.Id];
+            var key = configHash + "|" + p.File.IsTestProject + "|" + string.Join(",", src.Docs.Select(d => d.RelativePath + ":" + d.Hash));
+            if (!_analysis.TryGetValue(p.Id, out var cached) || cached.Key != key)
+            {
+                var test = p.File.IsTestProject;
+                cached = (key,
+                    test ? [] : endpointFinders.SelectMany(f => f.Find(src)).ToList(),
+                    test ? new ClientScanResult([], false) : clientFinder.Find(src));
+                _analysis[p.Id] = cached;
+            }
+            endpoints[p.Id] = cached.Endpoints;
+            clients[p.Id] = cached.Clients;
             kinds[p.Id] = ProjectClassifier.Classify(p.File,
-                new ProjectSignals(endpoints[p.Id].Count > 0, clients[p.Id].AnyHit), config);
+                new ProjectSignals(cached.Endpoints.Count > 0, cached.Clients.AnyHit), config);
         }
         PackageGraphBuilder.Build(workspace, projects, kinds, config, g);
 
@@ -87,13 +114,13 @@ public sealed class ScanOrchestrator
         return result;
     }
 
-    private static SourceSet LoadSources(string workspace, ScannedProject p, IReadOnlyList<ScannedProject> all, DepGraph g)
+    private static SourceSet LoadSources(string workspace, ScannedProject p, IReadOnlyList<ScannedProject> all, DepGraph g, ParseCache cache)
     {
         SourceSet set;
         try
         {
             set = SourceSet.Load(workspace, p.Repo.Name, p.Id, p.File.Name, p.Directory,
-                (rel, ex) => ParseError(g, workspace, p.Repo.Name, "info", $"{rel}: {ex.Message}"));
+                (rel, ex) => ParseError(g, workspace, p.Repo.Name, "info", $"{rel}: {ex.Message}"), cache);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
