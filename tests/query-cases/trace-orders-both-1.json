@@ -1,0 +1,7 @@
+{
+  "name": "orders repo: down results then up; a node reachable both ways appears twice",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "trace",
+  "args": { "id": "repo:orders", "direction": "both", "depth": 1 },
+  "expected": ["repo:billing@1", "repo:customers@1", "repo:shared@1", "repo:billing@1", "repo:gateway@1"]
+}

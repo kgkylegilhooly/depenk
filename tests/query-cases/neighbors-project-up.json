@@ -1,0 +1,7 @@
+{
+  "name": "Orders.Client project is depended on by its package (produces flip)",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "proj:orders/Orders.Client", "direction": "up" },
+  "expected": ["pkg:Orders.Client"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "Orders.Client package depends on the project that produces it",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "pkg:Orders.Client", "direction": "down" },
+  "expected": ["proj:orders/Orders.Client"]
+}

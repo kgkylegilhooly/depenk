@@ -1,0 +1,20 @@
+{
+  "name": "OrderDto model: endpoints at depth 1, client methods at depth 2, call sites at depth 3",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "trace",
+  "args": { "id": "model:Orders.Client:Acme.Orders.Client.OrderDto", "direction": "up", "depth": 3 },
+  "expected": [
+    "ep:orders:GET:/api/orders@1",
+    "ep:orders:GET:/api/orders/{id}@1",
+    "ep:orders:POST:/api/orders@1",
+    "cm:Orders.Client:IOrdersClient.ListAsync@2",
+    "cm:Orders.Client:OrdersClient.ListAsync@2",
+    "cm:Orders.Client:IOrdersClient.GetOrderAsync@2",
+    "cm:Orders.Client:OrdersClient.GetOrderAsync@2",
+    "cm:Orders.Client:IOrdersClient.CreateAsync@2",
+    "cm:Orders.Client:OrdersClient.CreateAsync@2",
+    "cs:gateway/Gateway.Api:OrdersProxy.List:9@3",
+    "cs:billing/Billing.Api:InvoiceBuilder.BuildAsync:10@3",
+    "cs:gateway/Gateway.Api:OrdersProxy.Create:10@3"
+  ]
+}

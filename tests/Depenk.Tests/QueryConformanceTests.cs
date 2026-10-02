@@ -13,6 +13,13 @@ public class QueryConformanceTests
         return Path.Combine(dir!.FullName, "tests", "query-cases");
     }
 
+    [Fact]
+    public void CaseFilesExist()
+    {
+        var files = Directory.EnumerateFiles(CasesDir(), "*.json").ToList();
+        Assert.True(files.Count >= 10, $"Expected at least 10 case files, found {files.Count}");
+    }
+
     public static IEnumerable<object[]> Cases() =>
         Directory.EnumerateFiles(CasesDir(), "*.json").Order(StringComparer.Ordinal).Select(f => new object[] { Path.GetFileName(f) });
 
@@ -29,10 +36,13 @@ public class QueryConformanceTests
 
         IEnumerable<string> actual = c.GetProperty("op").GetString() switch
         {
-            "neighbors" => (Arg("direction") == "down"
-                    ? index.DependenciesOf(Arg("id")).Select(h => h.To)
-                    : index.DependentsOf(Arg("id")).Select(h => h.From))
-                .Distinct().Order(StringComparer.Ordinal),
+            "neighbors" =>
+                Arg("direction") switch
+                {
+                    "down" => index.DependenciesOf(Arg("id")).Select(h => h.To).Distinct().Order(StringComparer.Ordinal),
+                    "up" => index.DependentsOf(Arg("id")).Select(h => h.From).Distinct().Order(StringComparer.Ordinal),
+                    var dir => throw new InvalidOperationException($"neighbors direction must be 'down' or 'up', got '{dir}'"),
+                },
             "trace" => new QueryService(index)
                 .Trace(Arg("id"), Arg("direction"), args.GetProperty("depth").GetInt32(), QueryService.MaxLimit)
                 .Nodes.Select(n => $"{n.Id}@{n.Depth}"),

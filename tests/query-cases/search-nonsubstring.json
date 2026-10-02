@@ -1,0 +1,7 @@
+{
+  "name": "query is not a substring; ranks by Levenshtein distance, then ordinal id",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "search",
+  "args": { "query": "OrdrDto", "limit": 3 },
+  "expected": ["repo:orders", "pkg:Refit", "proj:orders/Orders.Api"]
+}
