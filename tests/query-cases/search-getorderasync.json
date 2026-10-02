@@ -1,0 +1,7 @@
+{
+  "name": "substring matches rank first, then by edit distance to the label",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "search",
+  "args": { "query": "GetOrderAsync", "limit": 2 },
+  "expected": ["cm:Orders.Client:OrdersClient.GetOrderAsync", "cm:Orders.Client:IOrdersClient.GetOrderAsync"]
+}

@@ -1,0 +1,7 @@
+{
+  "name": "two hops of repo dependencies from billing",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "trace",
+  "args": { "id": "repo:billing", "direction": "down", "depth": 2 },
+  "expected": ["repo:customers@1", "repo:orders@1", "repo:shared@2"]
+}

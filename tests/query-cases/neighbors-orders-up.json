@@ -1,0 +1,7 @@
+{
+  "name": "orders is depended on by billing and gateway",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "repo:orders", "direction": "up" },
+  "expected": ["repo:billing", "repo:gateway"]
+}

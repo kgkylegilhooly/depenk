@@ -1,0 +1,7 @@
+{
+  "name": "both the interface and the implementation target GET /api/orders/{id}",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "ep:orders:GET:/api/orders/{id}", "direction": "up" },
+  "expected": ["cm:Orders.Client:IOrdersClient.GetOrderAsync", "cm:Orders.Client:OrdersClient.GetOrderAsync"]
+}

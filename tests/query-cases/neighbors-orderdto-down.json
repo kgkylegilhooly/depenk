@@ -1,0 +1,11 @@
+{
+  "name": "OrderDto's nested model types, including one from another repo",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "model:Orders.Client:Acme.Orders.Client.OrderDto", "direction": "down" },
+  "expected": [
+    "model:Customers.Client:Acme.Customers.Client.CustomerDto",
+    "model:Orders.Client:Acme.Orders.Client.OrderLineDto",
+    "model:Orders.Client:Acme.Orders.Client.OrderStatus"
+  ]
+}

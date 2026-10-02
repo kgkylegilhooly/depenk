@@ -1,0 +1,7 @@
+{
+  "name": "billing depends on customers and orders",
+  "graph": "../Depenk.Tests/Snapshots/FixtureScanTests.Snapshot.verified.json",
+  "op": "neighbors",
+  "args": { "id": "repo:billing", "direction": "down" },
+  "expected": ["repo:customers", "repo:orders"]
+}
