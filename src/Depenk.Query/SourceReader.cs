@@ -5,7 +5,8 @@ namespace Depenk.Query;
 
 public sealed class SourceReader(string workspace)
 {
-    private readonly string _root = Path.GetFullPath(workspace).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+    // TrimEndingDirectorySeparator keeps a root's separator ("C:\", "/"): trimming it would make Combine drive-relative
+    private readonly string _root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(workspace));
     private const long MaxFileSize = 5 * 1024 * 1024; // 5 MB
     private const int MaxLineLength = 1999;
 
@@ -25,39 +26,10 @@ public sealed class SourceReader(string workspace)
         // Rule c: No-follow link check (top-down)
         var full = VerifyNoFollowPath(location.Path);
 
-        try
-        {
-            // Rule d: Size cap and streaming read
-            var lines = ReadLinesWithCap(full, location.Line, context, location.Path);
-            var ctx = Math.Clamp(context, 0, 50);
-            var line = Math.Clamp(location.Line, 1, Math.Max(1, lines.Count));
-            var start = Math.Max(1, line - ctx);
-            var end = Math.Min(lines.Count, line + ctx);
-            var numbered = Enumerable.Range(start, Math.Max(0, end - start + 1))
-                .Select(n => $"{n,5}| {TruncateLine(lines[n - 1])}")
-                .ToList();
-            return new SourceSnippet(nodeId, location.Path, location.Line, start, numbered);
-        }
-        catch (PathTooLongException ex)
-        {
-            throw FileException(location.Path, ex, missing: false);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            throw FileException(location.Path, ex, missing: false);
-        }
-        catch (NotSupportedException ex)
-        {
-            throw FileException(location.Path, ex, missing: false);
-        }
-        catch (ArgumentException ex)
-        {
-            throw FileException(location.Path, ex, missing: false);
-        }
-        catch (IOException ex)
-        {
-            throw FileException(location.Path, ex, missing: true);
-        }
+        // Rule d: Size cap and streaming read that keeps only the lines it returns
+        var ctx = Math.Clamp(context, 0, 50);
+        var (start, numbered) = ReadWindow(full, Math.Max(1, location.Line), ctx, location.Path);
+        return new SourceSnippet(nodeId, location.Path, location.Line, start, numbered);
     }
 
     private static SourceLocation? LocationOf(GraphIndex ix, string id) =>
@@ -150,57 +122,45 @@ public sealed class SourceReader(string workspace)
         return current;
     }
 
-    private static List<string> ReadLinesWithCap(string fullPath, int targetLine, int context, string relativePath)
+    /// <summary>
+    /// Returns the numbered lines target±ctx (target clamped to the last line), holding at most 2·ctx+1 lines in memory.
+    /// Zero-length entries are never opened: FIFOs and devices report size 0 and would block or never end.
+    /// </summary>
+    private static (int Start, List<string> Lines) ReadWindow(string fullPath, int target, int ctx, string relativePath)
     {
         try
         {
-            var fileInfo = new FileInfo(fullPath);
-            if (fileInfo.Length > MaxFileSize)
+            var length = new FileInfo(fullPath).Length;
+            if (length > MaxFileSize)
                 throw new QueryException(QueryException.InvalidArgument, $"file too large to snippet",
                     "Files larger than 5 MB cannot be read as snippets.");
+            if (length == 0) return (1, []);
 
-            var lines = new List<string>();
-            var ctx = Math.Clamp(context, 0, 50);
-            var stopAfterLine = Math.Min(targetLine + ctx, targetLine + 1000); // Safety cap
-
+            var window = new Queue<string>(2 * ctx + 1);
+            var stopAfter = (long)target + ctx;
+            long count = 0;
             using (var reader = new StreamReader(fullPath))
             {
-                string? line;
-                int lineNum = 0;
-                while ((line = reader.ReadLine()) is not null)
+                while (count < stopAfter && reader.ReadLine() is { } text)
                 {
-                    lineNum++;
-                    lines.Add(line);
-                    if (lineNum >= stopAfterLine)
-                        break;
+                    count++;
+                    if (window.Count == 2 * ctx + 1) window.Dequeue();
+                    window.Enqueue(text);
                 }
             }
 
-            return lines;
+            var line = Math.Min(target, count);
+            var start = Math.Max(1, line - ctx);
+            var end = Math.Min(count, line + ctx);
+            var firstInWindow = count - window.Count + 1;
+            var numbered = window.Skip((int)(start - firstInWindow)).Take((int)Math.Max(0, end - start + 1))
+                .Select((text, i) => $"{start + i,5}| {TruncateLine(text)}")
+                .ToList();
+            return ((int)start, numbered);
         }
-        catch (QueryException)
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
         {
-            throw;
-        }
-        catch (PathTooLongException ex)
-        {
-            throw FileException(relativePath, ex, missing: false);
-        }
-        catch (UnauthorizedAccessException ex)
-        {
-            throw FileException(relativePath, ex, missing: false);
-        }
-        catch (NotSupportedException ex)
-        {
-            throw FileException(relativePath, ex, missing: false);
-        }
-        catch (ArgumentException ex)
-        {
-            throw FileException(relativePath, ex, missing: false);
-        }
-        catch (IOException ex)
-        {
-            throw FileException(relativePath, ex, missing: true);
+            throw FileException(relativePath, ex, missing: ex is FileNotFoundException or DirectoryNotFoundException);
         }
     }
 
@@ -217,6 +177,7 @@ public sealed class SourceReader(string workspace)
         var message = missing
             ? $"Source file no longer exists: {relativePath}"
             : $"Cannot read file: {relativePath}";
-        return new QueryException(code, message, "Run rescan to refresh the graph.");
+        return new QueryException(code, message,
+            missing ? "Run rescan to refresh the graph." : "The file may be locked by another process or unreadable; try again.");
     }
 }

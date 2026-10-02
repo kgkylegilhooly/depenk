@@ -9,8 +9,6 @@ namespace Depenk.Mcp;
 [McpServerToolType]
 public sealed class DepenkTools(GraphStore store)
 {
-    private const string ScanHint = "Fix depenk.yml or run `depenk scan` to see the full error.";
-
     [McpServerTool(Name = "list_repos", ReadOnly = true, Destructive = false, Idempotent = true, OpenWorld = false)]
     [Description("List every repo in the workspace with project/endpoint counts and the repo→repo dependency links created by client NuGet packages.")]
     public string ListRepos() =>
@@ -91,41 +89,43 @@ public sealed class DepenkTools(GraphStore store)
     [Description("Rescan the workspace now (incremental: only changed files are re-parsed) and refresh .depenk/graph.json.")]
     public string Rescan()
     {
-        try
-        {
-            var g = store.Rescan().Graph;
-            var counts = new RescanCounts(g.Repos.Count, g.Projects.Count, g.Endpoints.Count, g.ClientMethods.Count,
-                g.CallSites.Count, g.Models.Count, g.Diagnostics.Count);
-            return ToolJson.Envelope($"Rescanned: {counts.Repos} repos, {counts.Endpoints} endpoints, {counts.Diagnostics} diagnostics",
-                false, counts);
-        }
-        catch (Exception e) when (e is not McpException)
-        {
-            throw Fail(e);
-        }
+        GraphSnapshot snapshot;
+        try { snapshot = store.Rescan(); }
+        catch (Exception e) when (IsToolFailure(e)) { throw Fail(e, duringScan: true); }
+
+        var g = snapshot.Graph;
+        var counts = new RescanCounts(g.Repos.Count, g.Projects.Count, g.Endpoints.Count, g.ClientMethods.Count,
+            g.CallSites.Count, g.Models.Count, g.Diagnostics.Count);
+        return ToolJson.Envelope($"Rescanned: {counts.Repos} repos, {counts.Endpoints} endpoints, {counts.Diagnostics} diagnostics",
+            false, counts);
     }
 
     private string Run<T>(Func<GraphSnapshot, T> query, Func<T, string> summary)
     {
+        var snapshot = CurrentSnapshot(store);
         try
         {
-            var snapshot = store.Current();
             var data = query(snapshot);
             return ToolJson.Envelope(summary(data), snapshot.Stale, data);
         }
-        catch (Exception e) when (e is not McpException)
+        catch (Exception e) when (IsToolFailure(e))
         {
-            throw Fail(e);
+            throw Fail(e, duringScan: false);
         }
     }
 
-    /// <summary>Maps any failure to the structured error body; never exposes stack traces.</summary>
-    private static McpException Fail(Exception e) => e switch
+    /// <summary>Loading or scanning the graph is the only step whose unexpected failures are reported as scan_failed.</summary>
+    internal static GraphSnapshot CurrentSnapshot(GraphStore store)
     {
-        QueryException q => new McpException(ToolJson.Error(q)),
-        ConfigException c => new McpException(ToolJson.Error(QueryException.InvalidArgument, c.Message, ScanHint)),
-        _ => new McpException(ToolJson.Error("scan_failed", e.Message, ScanHint)),
-    };
+        try { return store.Current(); }
+        catch (Exception e) when (IsToolFailure(e)) { throw Fail(e, duringScan: true); }
+    }
+
+    /// <summary>Cancellation must reach the SDK as cancellation, not as a tool error.</summary>
+    internal static bool IsToolFailure(Exception e) => e is not (McpException or OperationCanceledException);
+
+    /// <summary>Maps any failure to the structured error body; never exposes stack traces.</summary>
+    internal static McpException Fail(Exception e, bool duringScan) => new(ToolJson.ErrorFor(e, duringScan));
 
     private sealed record RescanCounts(int Repos, int Projects, int Endpoints, int ClientMethods, int CallSites, int Models,
         int Diagnostics);

@@ -1,5 +1,6 @@
 using System.Reflection;
 using System.Text.Json;
+using Depenk.Core;
 using Depenk.Core.Model;
 using Depenk.Scanning;
 using Depenk.Scanning.Config;
@@ -55,9 +56,8 @@ public static class WorkspaceManifest
 
     public static void Save(string workspace, SortedDictionary<string, string> manifest)
     {
-        var path = ManifestPath(workspace);
-        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllText(path, JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
+        AtomicFile.WriteAllText(ManifestPath(workspace),
+            JsonSerializer.Serialize(manifest, new JsonSerializerOptions { WriteIndented = true }));
     }
 
     public static bool IsUpToDate(string workspace)

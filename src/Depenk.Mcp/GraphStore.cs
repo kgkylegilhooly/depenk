@@ -1,4 +1,3 @@
-using System.Text.Json;
 using Depenk.Analysis;
 using Depenk.Core;
 using Depenk.Core.Model;
@@ -16,8 +15,7 @@ public sealed class GraphStore(string workspace, ScanOrchestrator? orchestrator 
 {
     private readonly object _scanLock = new();
     private readonly ScanOrchestrator _orchestrator = orchestrator ?? new ScanOrchestrator(new ParseCache());
-    private GraphSnapshot? _snapshot;
-    private volatile bool _knownStale;
+    private GraphSnapshot? _snapshot; // its Stale flag is the known staleness of exactly that graph
     private int _refreshing;
     private int _scanCount;
 
@@ -34,27 +32,19 @@ public sealed class GraphStore(string workspace, ScanOrchestrator? orchestrator 
                 s = _snapshot;
                 if (s is null)
                 {
-                    if (TryLoad(out var cached))
-                    {
-                        _knownStale = !WorkspaceManifest.IsUpToDate(Workspace);
-                        s = Wrap(cached);
-                    }
-                    else
-                    {
-                        s = ScanLocked();
-                    }
+                    s = TryLoad() is { } cached
+                        ? cached with { Stale = !WorkspaceManifest.IsUpToDate(Workspace) }
+                        : ScanLocked();
                     Volatile.Write(ref _snapshot, s);
                 }
             }
         }
-        var stale = _knownStale || Volatile.Read(ref _refreshing) == 1;
-        return s.Stale == stale ? s : s with { Stale = stale };
+        return !s.Stale && Volatile.Read(ref _refreshing) == 1 ? s with { Stale = true } : s;
     }
 
     public Task? StartBackgroundRefresh()
     {
-        Current();
-        if (!_knownStale || Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0) return null;
+        if (!Current().Stale || Interlocked.CompareExchange(ref _refreshing, 1, 0) != 0) return null;
         return Task.Run(() =>
         {
             try
@@ -86,23 +76,22 @@ public sealed class GraphStore(string workspace, ScanOrchestrator? orchestrator 
         GraphJson.Save(graph, ScanOrchestrator.GraphPath(Workspace));
         WorkspaceManifest.Save(Workspace, manifest);
         Interlocked.Increment(ref _scanCount);
-        _knownStale = false;
         return Wrap(graph);
     }
 
-    private bool TryLoad(out DepGraph graph)
+    /// <summary>The cached graph, or null when it is missing, unreadable, from another schema or fails to index.</summary>
+    private GraphSnapshot? TryLoad()
     {
-        graph = null!;
         var path = ScanOrchestrator.GraphPath(Workspace);
-        if (!File.Exists(path)) return false;
+        if (!File.Exists(path)) return null;
         try
         {
-            graph = GraphJson.Load(path);
-            return graph.SchemaVersion == 1;
+            var graph = GraphJson.Load(path);
+            return graph.SchemaVersion == 1 ? Wrap(graph) : null;
         }
-        catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException or InvalidDataException)
+        catch (Exception e) when (e is not OperationCanceledException) // a cache we can't use is rebuilt, never fatal
         {
-            return false;
+            return null;
         }
     }
 

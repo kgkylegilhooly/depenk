@@ -129,11 +129,49 @@ public class SourceReaderTests
         var content = "line1\n" + longLine + "\nline3";
         ws.File("r/A.cs", content);
         var s = new SourceReader(ws.Root).Read(IndexWith(("ep:a", "r/A.cs", 2)), "ep:a", context: 1);
-        // Line 2 should be truncated to 2000 chars + "…" = 2001 total
-        var truncatedLine = s.Lines.FirstOrDefault(l => l.Contains("x"));
-        Assert.NotNull(truncatedLine);
-        var lineContent = truncatedLine!.Substring(6); // Skip line number and "| "
-        Assert.True(lineContent.Length <= 2001, $"Expected ≤2001 chars, got {lineContent.Length}");
+        Assert.Equal(["    1| line1", "    2| " + new string('x', 1999) + "…", "    3| line3"], s.Lines);
+    }
+
+    [Fact]
+    public void HugeLineNumber_ShowsEndOfFile_WithoutOverflow()
+    {
+        using var ws = new TempWorkspace().File("r/A.cs", Lines(20));
+        var s = new SourceReader(ws.Root).Read(IndexWith(("ep:a", "r/A.cs", int.MaxValue)), "ep:a", context: 2);
+        Assert.Equal(["   18| line18", "   19| line19", "   20| line20"], s.Lines);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    public void NonPositiveLine_ShowsStartOfFile(int line)
+    {
+        using var ws = new TempWorkspace().File("r/A.cs", Lines(20));
+        var s = new SourceReader(ws.Root).Read(IndexWith(("ep:a", "r/A.cs", line)), "ep:a", context: 2);
+        Assert.Equal(1, s.StartLine);
+        Assert.Equal(["    1| line1", "    2| line2", "    3| line3"], s.Lines);
+    }
+
+    [Fact]
+    public void LockedFile_IsNotReportedAsMissing()
+    {
+        if (!OperatingSystem.IsWindows()) return; // exclusive locks are advisory elsewhere
+        using var ws = new TempWorkspace().File("r/A.cs", Lines(3));
+        using var lockHandle = new FileStream(Path.Combine(ws.Root, "r", "A.cs"), FileMode.Open, FileAccess.Read, FileShare.None);
+        var ex = Assert.Throws<QueryException>(() => new SourceReader(ws.Root).Read(IndexWith(("ep:a", "r/A.cs", 1)), "ep:a"));
+        Assert.Equal("invalid_argument", ex.Code);
+        Assert.DoesNotContain("no longer exists", ex.Message);
+    }
+
+    [Fact]
+    public async Task NamedPipe_IsNeverOpened()
+    {
+        if (OperatingSystem.IsWindows()) return; // no FIFOs on the Windows filesystem
+        using var ws = new TempWorkspace().File("r/A.cs", "x");
+        var fifo = Path.Combine(ws.Root, "r", "Pipe.cs");
+        using (var p = Process.Start("mkfifo", fifo)) await p.WaitForExitAsync();
+        var read = Task.Run(() => new SourceReader(ws.Root).Read(IndexWith(("ep:a", "r/Pipe.cs", 1)), "ep:a"));
+        var snippet = await read.WaitAsync(TimeSpan.FromSeconds(5)); // TimeoutException = the read blocked on the FIFO
+        Assert.Empty(snippet.Lines);
     }
 
     [Fact]

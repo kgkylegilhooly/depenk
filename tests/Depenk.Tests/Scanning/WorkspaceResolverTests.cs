@@ -42,6 +42,21 @@ public class WorkspaceResolverTests
     }
 
     [Fact]
+    public void NonRepoFolder_AmongRepos_StaysPut()
+    {
+        using var ws = new TempWorkspace().Repo("orders").Repo("billing").File("notes/readme.md", "x");
+        var notes = Path.Combine(ws.Root, "notes");
+        Assert.Equal(notes, WorkspaceResolver.Resolve(null, notes, NoEnv));
+    }
+
+    [Fact]
+    public void TrailingSeparator_IsIgnored()
+    {
+        using var ws = new TempWorkspace().Repo("orders").Repo("billing");
+        Assert.Equal(ws.Root, WorkspaceResolver.Resolve(null, Path.Combine(ws.Root, "orders") + Path.DirectorySeparatorChar, NoEnv));
+    }
+
+    [Fact]
     public void MarkedCurrentDirectory_StaysPut()
     {
         using var ws = new TempWorkspace().Repo("orders").Repo("billing").File("orders/depenk.yml", "repos: {}\n");

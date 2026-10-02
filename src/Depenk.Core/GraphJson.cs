@@ -19,11 +19,7 @@ public static class GraphJson
     public static DepGraph Deserialize(string json) =>
         JsonSerializer.Deserialize<DepGraph>(json, Options) ?? throw new InvalidDataException("Empty graph JSON");
 
-    public static void Save(DepGraph g, string path)
-    {
-        Directory.CreateDirectory(Path.GetDirectoryName(Path.GetFullPath(path))!);
-        File.WriteAllText(path, Serialize(g));
-    }
+    public static void Save(DepGraph g, string path) => AtomicFile.WriteAllText(path, Serialize(g));
 
     public static DepGraph Load(string path) => Deserialize(File.ReadAllText(path));
 }

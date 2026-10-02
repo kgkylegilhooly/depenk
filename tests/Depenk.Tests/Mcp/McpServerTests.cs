@@ -84,6 +84,60 @@ public class McpServerTests
     }
 
     [Fact]
+    public async Task ImpactOfChange_HonorsLimit()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        await using var h = await McpHarness.StartAsync(ws.Root);
+
+        var (_, text) = await h.CallAsync("impact_of_change", new() { ["target"] = "OrderDto", ["limit"] = 1 });
+
+        using var doc = JsonDocument.Parse(text);
+        Assert.True(doc.RootElement.GetProperty("truncated").GetBoolean());
+        Assert.Equal(1, doc.RootElement.GetProperty("data").GetProperty("callSites").GetArrayLength());
+    }
+
+    [Fact]
+    public async Task StaleGraph_IsFlaggedInTheEnvelope()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        new GraphStore(ws.Root).Current();
+        ws.File("orders/src/Orders.Api/Extra.cs", "namespace X; public class Extra {}");
+        await using var h = await McpHarness.StartAsync(ws.Root);
+
+        var (isError, text) = await h.CallAsync("list_repos");
+
+        Assert.False(isError, text);
+        using var doc = JsonDocument.Parse(text);
+        Assert.True(doc.RootElement.GetProperty("stale").GetBoolean());
+    }
+
+    [Fact]
+    public async Task Rescan_WithInvalidConfig_IsToolError()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        await using var h = await McpHarness.StartAsync(ws.Root);
+        await h.DataAsync("list_repos");
+        ws.File("depenk.yml", "repos: [unterminated\n  : : :\n\t- bad");
+
+        var (isError, text) = await h.CallAsync("rescan");
+
+        Assert.True(isError);
+        using var doc = JsonDocument.Parse(text[text.IndexOf('{')..]);
+        Assert.Equal("invalid_argument", doc.RootElement.GetProperty("code").GetString());
+        Assert.Equal(5, (await h.DataAsync("list_repos")).GetProperty("repos").GetArrayLength()); // previous graph still served
+    }
+
+    [Theory]
+    [InlineData(true, "scan_failed")]
+    [InlineData(false, "internal_error")]
+    public void UnexpectedFailures_AreAttributedToScanOrQuery(bool duringScan, string code)
+    {
+        using var doc = JsonDocument.Parse(ToolJson.ErrorFor(new InvalidOperationException("boom"), duringScan));
+        Assert.Equal(code, doc.RootElement.GetProperty("code").GetString());
+        Assert.Equal(duringScan, doc.RootElement.GetProperty("hint").GetString()!.Contains("depenk.yml"));
+    }
+
+    [Fact]
     public async Task InvalidConfig_IsToolError_WithInvalidArgumentCode_AndNoStackTrace()
     {
         using var ws = new TempWorkspace();
