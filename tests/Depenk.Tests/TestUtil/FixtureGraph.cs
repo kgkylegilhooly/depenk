@@ -15,4 +15,5 @@ public static class FixtureGraph
 
     public static DepGraph Value => Graph.Value;
     public static GraphIndex Index => new(Graph.Value);
+    public static QueryService Query => new(Index);
 }
