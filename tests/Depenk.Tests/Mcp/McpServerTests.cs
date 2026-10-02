@@ -19,6 +19,7 @@ public class McpServerTests
         using var ws = FixtureScanTests.CopyFixture();
         await using var h = await McpHarness.StartAsync(ws.Root);
 
+        Assert.StartsWith("0.2.0", h.Client.ServerInfo.Version);
         var tools = await h.Client.ListToolsAsync();
         Assert.Equal(ExpectedTools, tools.Select(t => t.Name).Order(StringComparer.Ordinal));
         Assert.Equal(ExpectedTools, DepenkMcpServer.ToolNames.Order(StringComparer.Ordinal));

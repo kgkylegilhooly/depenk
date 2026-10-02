@@ -73,7 +73,7 @@ mcp.SetHandler(async ctx =>
     var ws = ResolveWorkspace(ctx.ParseResult.GetValueForOption(workspaceOption));
     if (!WorkspaceExists(ws)) { ctx.ExitCode = 3; return; }
 
-    var builder = Host.CreateApplicationBuilder();
+    var builder = Host.CreateEmptyApplicationBuilder(new HostApplicationBuilderSettings()); // no appsettings.json from the cwd, no env logging config
     builder.Logging.ClearProviders();
     builder.Logging.AddConsole(o => o.LogToStandardErrorThreshold = LogLevel.Trace); // stdout is the protocol channel
     builder.Logging.SetMinimumLevel(LogLevel.Warning);

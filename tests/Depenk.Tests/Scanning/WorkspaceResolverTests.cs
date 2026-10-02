@@ -48,4 +48,11 @@ public class WorkspaceResolverTests
         var orders = Path.Combine(ws.Root, "orders");
         Assert.Equal(orders, WorkspaceResolver.Resolve(null, orders, NoEnv));
     }
+
+    [Fact]
+    public void RootDirectory_IsNotTrimmed()
+    {
+        var root = Path.GetPathRoot(Path.GetTempPath())!;
+        Assert.Equal(root, WorkspaceResolver.Resolve(null, root, NoEnv));
+    }
 }

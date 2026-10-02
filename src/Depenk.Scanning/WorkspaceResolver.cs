@@ -10,7 +10,8 @@ public static class WorkspaceResolver
         var fromEnv = getEnv(EnvVar);
         if (!string.IsNullOrWhiteSpace(fromEnv)) return Path.GetFullPath(fromEnv);
 
-        var cwd = Path.GetFullPath(currentDirectory).TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+        var cwd = Path.GetFullPath(currentDirectory);
+        if (Path.GetPathRoot(cwd) != cwd) cwd = cwd.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
         if (IsMarked(cwd)) return cwd;
         var parent = Path.GetDirectoryName(cwd);
         if (parent is not null && IsGitRepo(cwd) && (IsMarked(parent) || CountGitRepos(parent) >= 2)) return parent;

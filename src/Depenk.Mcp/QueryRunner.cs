@@ -19,7 +19,8 @@ public static class QueryRunner
         {
             args = string.IsNullOrWhiteSpace(json)
                 ? []
-                : JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)!.ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
+                : (JsonSerializer.Deserialize<Dictionary<string, JsonElement>>(json)
+                    ?? throw new JsonException("expected an object, got null")).ToDictionary(kv => kv.Key, kv => (object?)kv.Value);
         }
         catch (JsonException ex)
         {
@@ -30,9 +31,11 @@ public static class QueryRunner
         Pipe c2s = new(), s2c = new();
         var services = new ServiceCollection();
         services.AddLogging();
-        services.AddDepenkMcpServer(new GraphStore(workspace)).WithStreamServerTransport(c2s.Reader.AsStream(), s2c.Writer.AsStream());
+        var store = new GraphStore(workspace);
+        services.AddDepenkMcpServer(store).WithStreamServerTransport(c2s.Reader.AsStream(), s2c.Writer.AsStream());
         await using var sp = services.BuildServiceProvider();
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        if (store.Current().Stale) store.Rescan(); // one-shot: never answer from a stale cache
         var serverTask = sp.GetRequiredService<McpServer>().RunAsync(cts.Token);
         try
         {

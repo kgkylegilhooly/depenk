@@ -4,7 +4,6 @@
     <PackAsTool>true</PackAsTool>
     <ToolCommandName>depenk</ToolCommandName>
     <PackageId>depenk</PackageId>
-    <Version>0.2.0</Version>
     <Description>Cross-repo C# dependency explorer: NuGet client packages, HTTP endpoints and models.</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
   </PropertyGroup>

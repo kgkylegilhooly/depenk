@@ -1,3 +1,4 @@
+using Depenk.Tests.TestUtil;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
@@ -17,10 +18,11 @@ public class McpStdioTests
         return dll;
     }
 
-    private static Task<McpClient> Connect(IList<string> args, Dictionary<string, string?>? env = null) =>
+    private static Task<McpClient> Connect(IList<string> args, Dictionary<string, string?>? env = null, string? workingDirectory = null) =>
         McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "depenk", Command = "dotnet", Arguments = [CliDll(), .. args], EnvironmentVariables = env,
+            WorkingDirectory = workingDirectory, ShutdownTimeout = TimeSpan.FromSeconds(1),
         }));
 
     [Fact]
@@ -43,5 +45,14 @@ public class McpStdioTests
         await using var client = await Connect(["mcp"], new() { ["DEPENK_WORKSPACE"] = ws.Root });
         var result = await client.CallToolAsync("get_repo", new Dictionary<string, object?> { ["repo"] = "billing" });
         Assert.NotEqual(true, result.IsError);
+    }
+
+    [Fact]
+    public async Task MalformedAppSettingsInWorkingDirectory_DoesNotBreakTheServer()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        ws.File("appsettings.json", "{ not json");
+        await using var client = await Connect(["mcp", "--workspace", ws.Root], workingDirectory: ws.Root);
+        Assert.Equal(12, (await client.ListToolsAsync()).Count);
     }
 }

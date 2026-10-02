@@ -51,4 +51,32 @@ public class QueryRunnerTests
         Assert.Equal(0, code);
         Assert.Equal(12, stdout.Split('\n', StringSplitOptions.RemoveEmptyEntries).Length);
     }
+
+    [Fact]
+    public async Task JsonNull_IsExit2()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        var r = await Run(ws.Root, "list_repos", "null");
+        Assert.Equal(2, r.Code);
+        Assert.Contains("--json", r.Err);
+    }
+
+    [Fact]
+    public async Task StaleCache_IsRescannedBeforeAnswering()
+    {
+        using var ws = FixtureScanTests.CopyFixture();
+        new GraphStore(ws.Root).Current();
+        ws.File("orders/src/Orders.Api/CancelController.cs", """
+            using Microsoft.AspNetCore.Mvc;
+            namespace Acme.Orders.Api;
+            [Route("api/orders")]
+            public class CancelController : ControllerBase { [HttpPost("{id}/cancel")] public Task Cancel(Guid id) => Task.CompletedTask; }
+            """);
+        var (code, stdout, _) = await Run(ws.Root, "find_endpoints", """{"query":"cancel"}""");
+        Assert.Equal(0, code);
+        using var doc = JsonDocument.Parse(stdout);
+        Assert.False(doc.RootElement.GetProperty("stale").GetBoolean());
+        Assert.Contains("cancel", stdout);
+        Assert.True(doc.RootElement.GetProperty("data").GetProperty("items").GetArrayLength() >= 1);
+    }
 }
