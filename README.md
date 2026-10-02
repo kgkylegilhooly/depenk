@@ -4,7 +4,7 @@
 
 depenk scans a folder of local C# repo clones and builds a cross-repo dependency graph: which service calls which, through which API client package, hitting which controller endpoint, carrying which request and response models. It reads `.csproj` files and source as plain syntax (Roslyn), so **nothing is ever restored or built** — a broken SDK pin in one repo never blocks the scan.
 
-> **Status: early (v0.1).** The scanning engine is done and tested. The MCP server, interactive diagram and change-history features are on the [roadmap](#roadmap).
+> **Status: early (v0.2).** Scanning engine and MCP server are done; the interactive diagram and change history are on the [roadmap](#roadmap).
 
 ## The idea
 
@@ -81,12 +81,57 @@ Every direct child folder that is a git repo is scanned. Running `scan` again is
 
 | Option | Default | |
 |---|---|---|
-| `--workspace <dir>` | current directory | folder containing the repo clones |
+| `--workspace <dir>` | auto-detected (see below) | folder containing the repo clones |
 | `--force` | off | rescan even if nothing changed |
 
-Exit codes: `0` success · `1` unexpected error · `2` invalid `depenk.yml` · `3` workspace not found.
+Exit codes: `0` success · `1` unexpected or tool error · `2` invalid `depenk.yml` or `--json` · `3` workspace not found.
 
 Without installing: `dotnet run --project src/depenk -- scan --workspace <dir>`.
+
+## Use it from Claude Code (MCP)
+
+As a plugin, which gives you the skill plus the MCP server (needs the `depenk` tool on `PATH`, see above):
+
+```
+/plugin marketplace add kgkylegilhooly/depenk
+/plugin install depenk@depenk
+```
+
+Or register just the MCP server:
+
+```bash
+claude mcp add depenk -- depenk mcp --workspace ~/code/repos
+```
+
+The server runs over stdio and exposes 12 tools:
+
+| Tool | Answers |
+|---|---|
+| `list_repos` | what's in the workspace and how repos connect |
+| `get_repo` | a repo's projects, packages and dependents |
+| `find_endpoints` | endpoints by route or handler text |
+| `get_endpoint` | an endpoint's contract, client methods and callers |
+| `get_model` | a model's field tree across repos |
+| `find_model_usages` | where a model travels |
+| `trace` | dependencies up or down from any node |
+| `impact_of_change` | what breaks if a package, endpoint, model or field changes |
+| `get_diagnostics` | drift, cycles, unused, ambiguous |
+| `how_to_call` | which package and method to use |
+| `get_source` | a code snippet from any repo |
+| `rescan` | refresh the graph |
+
+The `depenk://overview` resource gives a one-page summary of repos, service links, hotspots and diagnostics.
+
+Every tool returns a compact envelope `{summary, stale, truncated, data}`. Errors carry a `code` (`not_found`, `ambiguous`, …) and `suggestions`.
+
+**Workspace detection**, in this order: `--workspace`, `$DEPENK_WORKSPACE`, a folder containing `depenk.yml` or `.depenk/`, and the parent of the current repo when it has sibling repos.
+
+**Without MCP**, the same tools work from the shell:
+
+```bash
+depenk query tools
+depenk query impact_of_change --json '{"target":"OrderDto.Lines"}'
+```
 
 ## Configuration (`depenk.yml`)
 
@@ -146,7 +191,7 @@ Known limitations of syntax-only analysis: MSBuild `Condition`s and `Import`s ar
 ## Roadmap
 
 - [x] **Graph engine** — `depenk scan`, everything above
-- [ ] **MCP server + Claude Code skill** — let AI agents ask "what breaks if I change this endpoint/model/field?" (`impact_of_change`, `get_endpoint`, `get_model`, `find_model_usages`, `how_to_call`, …) via a local stdio server — no Docker
+- [x] **MCP server + Claude Code skill** — let AI agents ask "what breaks if I change this endpoint/model/field?" (`impact_of_change`, `get_endpoint`, `get_model`, `find_model_usages`, `how_to_call`, …) via a local stdio server — no Docker. `compare_snapshots` and `check_contract_changes` arrive with History; `export_diagram`/`open_diagram` with the diagram.
 - [ ] **Interactive diagram** — dark "Observatory" UI: repo → project → endpoint drill-down, model trees, filters, Ctrl+K search; exported as a single HTML file or served live
 - [ ] **History** — snapshots, architecture diffs between scans, and `check_contract_changes` to catch breaking API changes before you commit
 

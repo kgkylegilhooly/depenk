@@ -1,0 +1,10 @@
+{
+  "name": "depenk",
+  "version": "0.2.0",
+  "description": "Cross-repo dependency graph for C# services connected by API client NuGet packages: impact analysis, endpoint/model contracts and callers via MCP.",
+  "author": { "name": "depenk contributors" },
+  "homepage": "https://github.com/kgkylegilhooly/depenk",
+  "repository": "https://github.com/kgkylegilhooly/depenk",
+  "license": "MIT",
+  "keywords": ["csharp", "dotnet", "dependencies", "microservices", "mcp", "impact-analysis"]
+}

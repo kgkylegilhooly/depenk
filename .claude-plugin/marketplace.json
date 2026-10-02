@@ -1,0 +1,11 @@
+{
+  "name": "depenk",
+  "owner": { "name": "depenk contributors" },
+  "plugins": [
+    {
+      "name": "depenk",
+      "source": "./",
+      "description": "Cross-repo C# dependency explorer: skill + MCP server (requires the depenk .NET tool on PATH)."
+    }
+  ]
+}
