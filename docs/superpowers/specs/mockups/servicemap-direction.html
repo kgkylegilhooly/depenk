@@ -1,0 +1,526 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>depenk diagram mockups</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans+Condensed:wght@600;700&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+:root {
+  --bg: #eef1f4; --surface: #ffffff; --surface-2: #f6f8fa; --ink: #16202b; --ink-2: #4a5866; --ink-3: #7c8a97;
+  --line: #d5dce3; --accent: #0b6e79; --accent-soft: #d8eef0; --grid: #cfd7df;
+  --ok: #1d7a46; --ok-soft: #dcf1e4; --warn: #9a6200; --warn-soft: #fbefd6; --bad: #c0362c; --bad-soft: #fbe3e0;
+  --m-get: #2463b0; --m-post: #1d7a46; --m-put: #9a6200; --m-delete: #c0362c; --m-patch: #7045a8; --m-other: #5b6875;
+  --r-billing: #b5502a; --r-customers: #7045a8; --r-gateway: #2463b0; --r-orders: #0b6e79; --r-shared: #5b6875;
+  --font-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  color-scheme: light;
+}
+:root[data-theme="dark"] {
+  --bg: #0e1418; --surface: #151d23; --surface-2: #1a242b; --ink: #e3eaef; --ink-2: #a6b4bf; --ink-3: #718290;
+  --line: #2a3740; --accent: #4cc2cc; --accent-soft: #143a3f; --grid: #24323b;
+  --ok: #5cc98a; --ok-soft: #15301f; --warn: #e2a93b; --warn-soft: #3a2d12; --bad: #f07a6e; --bad-soft: #3d1c19;
+  --m-get: #6aa7ef; --m-post: #5cc98a; --m-put: #e2a93b; --m-delete: #f07a6e; --m-patch: #b393ea; --m-other: #92a1ad;
+  --r-billing: #e98a5f; --r-customers: #b393ea; --r-gateway: #6aa7ef; --r-orders: #4cc2cc; --r-shared: #92a1ad;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-body); display: flex; flex-direction: column; }
+button, input { font: inherit; color: inherit; }
+
+/* ---------- mockup switcher (not part of the design) ---------- */
+.switcher { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; padding: 10px 16px; background: #1c1b18; color: #f3f1ea; font-size: 13px; }
+.switcher b { font-weight: 600; margin-right: 6px; }
+.switcher button { border: 1px solid #4a4840; background: transparent; color: #f3f1ea; border-radius: 999px; padding: 4px 12px; cursor: pointer; }
+.switcher button.on { background: #f3f1ea; color: #1c1b18; }
+.switcher .spacer { flex: 1; }
+.switcher .like { border-color: #6a8f5a; }
+.switcher .like.selected { background: #6a8f5a; color: #fff; }
+.mock { display: none; flex: 1; min-height: 0; }
+.mock.on { display: grid; }
+.caption { padding: 8px 16px; font-size: 13px; color: var(--ink-2); background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.caption strong { color: var(--ink); }
+
+/* ---------- app chrome ---------- */
+.app { grid-template-rows: auto auto 1fr; min-height: 0; }
+.bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; padding: 10px 16px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.brand { display: flex; align-items: baseline; gap: 10px; }
+.brand h1 { margin: 0; font: 700 20px/1 var(--font-display); }
+.brand small { color: var(--ink-3); font-size: 12px; }
+.crumbs { display: flex; gap: 6px; align-items: center; font-size: 13px; color: var(--ink-3); }
+.crumbs b { color: var(--ink); font-weight: 600; }
+.stats { display: flex; flex-wrap: wrap; gap: 6px; }
+.stat { display: inline-flex; align-items: baseline; gap: 5px; padding: 3px 9px; border-radius: 999px; background: var(--surface-2); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.stat b { font: 500 13px var(--font-mono); color: var(--ink); }
+.stat.warn { background: var(--warn-soft); border-color: transparent; color: var(--warn); } .stat.warn b { color: var(--warn); }
+.stat.bad { background: var(--bad-soft); border-color: transparent; color: var(--bad); } .stat.bad b { color: var(--bad); }
+.search { margin-left: auto; flex: 0 1 300px; white-space: nowrap; overflow: hidden; display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface-2); font: 13px var(--font-mono); color: var(--ink-3); }
+.search kbd { margin-left: auto; font: 11px var(--font-mono); border: 1px solid var(--line); border-radius: 4px; padding: 0 5px; background: var(--surface); }
+.icon-btn { border: 1px solid var(--line); background: var(--surface-2); border-radius: 8px; padding: 5px 9px; cursor: pointer; font-size: 13px; color: var(--ink-2); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.seg span { padding: 4px 11px; font-size: 12px; color: var(--ink-2); background: var(--surface-2); }
+.seg span + span { border-left: 1px solid var(--line); }
+.seg span.on { background: var(--accent); color: var(--surface); }
+
+.main { display: grid; min-height: 0; }
+.main.two { grid-template-columns: minmax(0, 1fr) 400px; }
+.main.three { grid-template-columns: 260px minmax(0, 1fr) 380px; }
+.stage { position: relative; min-width: 0; min-height: 0; overflow: hidden; }
+.stage svg.map { width: 100%; height: 100%; display: block; }
+.zoom { position: absolute; right: 12px; bottom: 12px; display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.zoom span { width: 34px; height: 30px; display: grid; place-items: center; color: var(--ink-2); font-size: 15px; }
+.zoom span + span { border-top: 1px solid var(--line); }
+.hint { position: absolute; left: 12px; bottom: 12px; font-size: 12px; color: var(--ink-3); }
+.floating { position: absolute; left: 12px; top: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; background: var(--surface); border: 1px solid var(--line); font-size: 12px; color: var(--ink-2); }
+.chip.on { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
+
+/* map marks */
+.node rect.box { fill: var(--surface); stroke: var(--line); stroke-width: 1.2; }
+.node .name { font: 600 15px var(--font-display); fill: var(--ink); }
+.node .meta { font: 11px var(--font-mono); fill: var(--ink-3); }
+.node .sub { font: 12px var(--font-mono); fill: var(--ink-2); }
+.node.proj .name { font: 600 13px var(--font-display); }
+.node.selected rect.box { stroke: var(--accent); stroke-width: 2.2; }
+.node.hit rect.box { stroke: var(--bad); stroke-width: 2.2; }
+.node.src rect.box { stroke: var(--accent); stroke-width: 2.6; fill: var(--accent-soft); }
+.node.dim { opacity: .28; }
+.node .badge rect { rx: 9; }
+.node .badge.warn rect { fill: var(--warn); } .node .badge.bad rect { fill: var(--bad); } .node .badge.ok rect { fill: var(--ok); }
+.node .badge text { font: 600 11px var(--font-mono); fill: var(--surface); }
+.node .tag { font: 500 10px var(--font-mono); fill: var(--ink-3); letter-spacing: .06em; }
+.node .verbbox { rx: 4; }
+.group rect { fill: color-mix(in srgb, var(--surface) 55%, transparent); stroke: var(--line); stroke-dasharray: 5 4; }
+.group text { font: 600 12px var(--font-mono); fill: var(--ink-3); letter-spacing: .04em; }
+.edge path.line { fill: none; stroke: var(--ink-3); stroke-linecap: round; }
+.edge.warn path.line { stroke: var(--warn); }
+.edge.low path.line { stroke-dasharray: 5 5; }
+.edge.hot path.line { stroke: var(--bad); }
+.edge.accent path.line { stroke: var(--accent); }
+.edge.dim { opacity: .2; }
+.edge .label rect { fill: var(--surface); stroke: var(--line); }
+.edge .label text { font: 11px var(--font-mono); fill: var(--ink-2); }
+.edge.warn .label rect { fill: var(--warn-soft); stroke: transparent; } .edge.warn .label text { fill: var(--warn); }
+.edge.hot .label rect { fill: var(--bad-soft); stroke: transparent; } .edge.hot .label text { fill: var(--bad); }
+
+/* ---------- side panels ---------- */
+.rail, .side { background: var(--surface); overflow-y: auto; min-width: 0; }
+.rail { border-left: 1px solid var(--line); }
+.side { border-right: 1px solid var(--line); }
+.pad { padding: 18px 18px 40px; display: flex; flex-direction: column; gap: 20px; }
+.side .pad { padding: 14px 14px 30px; gap: 18px; }
+.rail h2 { margin: 0; font: 700 22px/1.15 var(--font-display); overflow-wrap: anywhere; }
+h3.sec { margin: 0 0 8px; font: 600 11px var(--font-body); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); display: flex; justify-content: space-between; }
+h3.sec span { font-family: var(--font-mono); letter-spacing: 0; }
+.subline { color: var(--ink-2); font-size: 13px; margin-top: 4px; }
+.summary { font-size: 14px; color: var(--ink-2); margin: 6px 0 0; }
+.summary strong { color: var(--ink); }
+.list { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+.row { display: grid; grid-template-columns: 58px minmax(0, 1fr); gap: 3px 10px; padding: 9px 12px; background: var(--surface); }
+.row + .row { border-top: 1px solid var(--line); }
+.row.compact { grid-template-columns: 1fr auto; }
+.row .route { font: 13px var(--font-mono); overflow-wrap: anywhere; }
+.row .detail { grid-column: 2; font-size: 12px; color: var(--ink-2); overflow-wrap: anywhere; }
+.row.compact .detail { grid-column: 1 / -1; }
+.row code, .mono { font-family: var(--font-mono); font-size: 12px; }
+.row.bad { box-shadow: inset 3px 0 0 var(--bad); } .row.warn { box-shadow: inset 3px 0 0 var(--warn); } .row.info { box-shadow: inset 3px 0 0 var(--ink-3); }
+.row.sel { background: var(--accent-soft); }
+.verb { align-self: start; justify-self: start; font: 600 10.5px/1 var(--font-mono); padding: 4px 6px; border-radius: 4px; color: var(--surface); background: var(--m-other); min-width: 48px; text-align: center; }
+.verb.GET { background: var(--m-get); } .verb.POST { background: var(--m-post); } .verb.DELETE { background: var(--m-delete); }
+.verb.WARN { background: var(--warn); } .verb.INFO { background: var(--ink-3); }
+.pill { display: inline-block; font: 500 11px var(--font-mono); padding: 1px 7px; border-radius: 999px; background: var(--surface-2); color: var(--ink-2); border: 1px solid var(--line); }
+.pill.high { color: var(--ok); } .pill.medium { color: var(--warn); } .pill.low { background: var(--warn-soft); color: var(--warn); border-color: transparent; }
+.pill.xrepo { color: var(--accent); border-color: var(--accent); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 3px; vertical-align: 0; margin-right: 6px; }
+.tabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); }
+.tabs span { padding: 7px 11px; font-size: 13px; color: var(--ink-3); border-bottom: 2px solid transparent; margin-bottom: -1px; }
+.tabs span.on { color: var(--ink); border-color: var(--accent); font-weight: 500; }
+.tree { font: 13px/1.9 var(--font-mono); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; }
+.tree .t { color: var(--ink-3); }
+.tree .i1 { padding-left: 18px; } .tree .i2 { padding-left: 36px; } .tree .i3 { padding-left: 54px; }
+.tree .chg { background: var(--bad-soft); color: var(--bad); border-radius: 4px; padding: 0 4px; }
+.navlist { display: flex; flex-direction: column; gap: 1px; }
+.navlist div { display: flex; justify-content: space-between; padding: 5px 8px; border-radius: 6px; font-size: 13px; }
+.navlist div.on { background: var(--accent-soft); color: var(--accent); font-weight: 500; }
+.navlist div span { font: 12px var(--font-mono); color: var(--ink-3); }
+.check { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--ink-2); padding: 2px 0; }
+.check i { width: 14px; height: 14px; border-radius: 4px; border: 1.5px solid var(--line); display: inline-block; }
+.check i.y { background: var(--accent); border-color: var(--accent); }
+.big { font: 700 30px/1 var(--font-display); }
+.kpis { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.kpi { border: 1px solid var(--line); border-radius: 8px; padding: 10px; }
+.kpi small { display: block; font-size: 11px; color: var(--ink-3); text-transform: uppercase; letter-spacing: .06em; }
+.kpi.bad .big { color: var(--bad); }
+.legend { display: grid; grid-template-columns: 34px 1fr; gap: 7px 10px; align-items: center; font-size: 12px; color: var(--ink-2); }
+.legend svg { width: 34px; height: 10px; }
+.target { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 2px solid var(--accent); border-radius: 8px; background: var(--surface); font: 13px var(--font-mono); }
+.target span { color: var(--ink-3); font-family: var(--font-body); font-size: 12px; }
+</style></head>
+<body>
+
+<div class="switcher">
+  <b>depenk · diagram mockups</b>
+  <button data-tab="a" class="on">A · Map + detail rail</button>
+  <button data-tab="b">B · Command Center</button>
+  <button data-tab="c">C · Endpoint drill-down</button>
+  <button data-tab="d">D · Impact view</button>
+  <span class="spacer"></span>
+  <button id="theme">◐ Light / dark</button>
+  <button class="like" data-choice="a" onclick="toggleSelect(this)">♥ A</button>
+  <button class="like" data-choice="b" onclick="toggleSelect(this)">♥ B</button>
+  <button class="like" data-choice="c" onclick="toggleSelect(this)">♥ C</button>
+  <button class="like" data-choice="d" onclick="toggleSelect(this)">♥ D</button>
+</div>
+
+<!-- ================================================================ A -->
+<section class="mock app on" id="m-a">
+  <div class="caption"><strong>A. Your ServiceMap layout with depenk data.</strong> Repos are boxes, colored by repo, and the arrows are package links. The orange arrows are the billing ⇄ orders cycle. The right panel shows the overview and "needs attention" until you click something.</div>
+  <header class="bar">
+    <div class="brand"><h1>depenk</h1><small>scanned 2 Oct 2026, 14:02 · 5 repos</small></div>
+    <div class="stats">
+      <span class="stat"><b>5</b>repos</span><span class="stat"><b>7</b>endpoints</span><span class="stat"><b>8</b>client methods</span><span class="stat"><b>5</b>call sites</span>
+      <span class="stat warn"><b>3</b>warnings</span>
+    </div>
+    <div class="search">⌕ Find a repo, endpoint… <kbd>Ctrl K</kbd></div>
+  </header>
+  <div class="main two">
+    <div class="stage"><svg class="map" id="map-a"></svg>
+      <div class="zoom"><span>+</span><span>−</span><span>⤢</span></div>
+      <div class="hint">Drag repos to rearrange · scroll to zoom · double-click a repo to open its projects</div>
+    </div>
+    <aside class="rail"><div class="pad">
+      <div><h2>6 links across 5 repos</h2>
+        <p class="summary">Repos depend on each other through <strong>4 client packages</strong>. 5 call sites reach 7 endpoints. Select a repo or an arrow to see the calls behind it.</p></div>
+      <section><h3 class="sec">Needs attention <span>5</span></h3><div class="list">
+        <div class="row warn"><span class="verb WARN">CYCLE</span><span class="route">billing → orders → billing</span><span class="detail">Billing.Client ⇄ Orders.Client</span></div>
+        <div class="row warn"><span class="verb WARN">DRIFT</span><span class="route">Orders.Client</span><span class="detail">latest 3.4.1 · <code>Billing.Api</code> is on 3.2.0</span></div>
+        <div class="row warn"><span class="verb WARN">AMBIG</span><span class="route">GET /api/customers/{}</span><span class="detail"><code>CustomersClient.GetCustomerAsync</code> matches 2 endpoints</span></div>
+        <div class="row info"><span class="verb INFO">UNUSED</span><span class="route">DELETE /api/orders/{id}</span><span class="detail">no client method calls it</span></div>
+        <div class="row info"><span class="verb INFO">PARSE</span><span class="route">Billing.Api/Broken.cs:3</span><span class="detail">) expected</span></div>
+      </div></section>
+      <section><h3 class="sec">Repos <span>5</span></h3><div class="list">
+        <div class="row compact"><span class="route"><i class="dot" style="background:var(--r-orders)"></i>orders</span><span class="pill">3 dependents</span><span class="detail">4 endpoints · publishes Orders.Client 3.4.1</span></div>
+        <div class="row compact"><span class="route"><i class="dot" style="background:var(--r-billing)"></i>billing</span><span class="pill">1 dependent</span><span class="detail">1 endpoint · publishes Billing.Client</span></div>
+        <div class="row compact"><span class="route"><i class="dot" style="background:var(--r-customers)"></i>customers</span><span class="pill">2 dependents</span><span class="detail">2 endpoints · publishes Customers.Client</span></div>
+        <div class="row compact"><span class="route"><i class="dot" style="background:var(--r-gateway)"></i>gateway</span><span class="pill">0 dependents</span><span class="detail">consumes Orders.Client</span></div>
+        <div class="row compact"><span class="route"><i class="dot" style="background:var(--r-shared)"></i>shared</span><span class="pill">1 dependent</span><span class="detail">library · Shared.Kernel</span></div>
+      </div></section>
+      <section><h3 class="sec">Legend</h3><div class="legend">
+        <svg viewBox="0 0 34 10"><path d="M2 5H30" style="stroke:var(--ink-3);stroke-width:2.5"/></svg><span>Depends on, through a client package (thicker = more calls)</span>
+        <svg viewBox="0 0 34 10"><path d="M2 5H30" style="stroke:var(--warn);stroke-width:2.5"/></svg><span>Part of a dependency cycle</span>
+        <svg viewBox="0 0 34 10"><path d="M2 5H30" style="stroke:var(--ink-3);stroke-width:2;stroke-dasharray:5 5"/></svg><span>Package referenced but never called</span>
+      </div></section>
+    </div></aside>
+  </div>
+</section>
+
+<!-- ================================================================ B -->
+<section class="mock app" id="m-b">
+  <div class="caption"><strong>B. Command Center in the same style.</strong> A left sidebar holds the depth switch, browse lists, filters and diagnostics. The map is shown at <em>Project</em> depth: each repo is a dashed container around its projects. The inspector on the right has tabs for the selected item.</div>
+  <header class="bar">
+    <div class="brand"><h1>depenk</h1></div>
+    <div class="crumbs">System <span>/</span> <b>orders</b></div>
+    <div class="search">⌕ Find anything… <kbd>Ctrl K</kbd></div>
+    <button class="icon-btn">Export ▾</button>
+  </header>
+  <div class="main three">
+    <aside class="side"><div class="pad">
+      <div><h3 class="sec">Depth</h3><div class="seg"><span>Repo</span><span class="on">Project</span><span>Endpoint</span></div></div>
+      <div>
+        <div class="tabs"><span class="on">Repos</span><span>Endpoints</span><span>Models</span><span>Packages</span></div>
+        <div class="navlist" style="margin-top:8px">
+          <div><span style="color:var(--ink)"><i class="dot" style="background:var(--r-billing)"></i>billing</span><span>2</span></div>
+          <div><span style="color:var(--ink)"><i class="dot" style="background:var(--r-customers)"></i>customers</span><span>2</span></div>
+          <div><span style="color:var(--ink)"><i class="dot" style="background:var(--r-gateway)"></i>gateway</span><span>1</span></div>
+          <div class="on"><span style="color:inherit"><i class="dot" style="background:var(--r-orders)"></i>orders</span><span>3</span></div>
+          <div><span style="color:var(--ink)"><i class="dot" style="background:var(--r-shared)"></i>shared</span><span>1</span></div>
+        </div>
+      </div>
+      <div><h3 class="sec">Show</h3>
+        <div class="check"><i class="y"></i>API projects</div><div class="check"><i class="y"></i>Client packages</div>
+        <div class="check"><i class="y"></i>Libraries</div><div class="check"><i></i>Test projects</div><div class="check"><i></i>Third-party packages</div>
+      </div>
+      <div><h3 class="sec">Highlight</h3><div class="seg"><span>Up</span><span>Down</span><span class="on">Both</span></div></div>
+      <div><h3 class="sec">Min confidence</h3><div class="seg"><span class="on">Any</span><span>Med</span><span>High</span></div></div>
+      <div><h3 class="sec">Diagnostics <span>5</span></h3><div class="navlist">
+        <div><span style="color:var(--warn)">● cycle</span><span>1</span></div><div><span style="color:var(--warn)">● versionDrift</span><span>1</span></div>
+        <div><span style="color:var(--warn)">● ambiguousRoute</span><span>1</span></div><div><span style="color:var(--ink-3)">● unusedEndpoint</span><span>1</span></div><div><span style="color:var(--ink-3)">● parseError</span><span>1</span></div>
+      </div></div>
+    </div></aside>
+    <div class="stage"><svg class="map" id="map-b"></svg>
+      <div class="zoom"><span>+</span><span>−</span><span>⤢</span></div>
+    </div>
+    <aside class="rail"><div class="pad">
+      <div><h2><i class="dot" style="background:var(--r-orders);width:12px;height:12px"></i>orders</h2><div class="subline"><code class="mono">orders/</code> · 3 projects · HEAD 0123456</div></div>
+      <div class="tabs"><span class="on">Overview</span><span>Publishes</span><span>Called by</span><span>Endpoints</span></div>
+      <div class="kpis"><div class="kpi"><small>Endpoints</small><span class="big">4</span></div><div class="kpi"><small>Dependents</small><span class="big">2</span></div><div class="kpi"><small>Depends on</small><span class="big">3</span></div></div>
+      <section><h3 class="sec">Publishes</h3><div class="list">
+        <div class="row compact"><span class="route">Orders.Client</span><span class="pill">3.4.1</span><span class="detail">consumed by billing (3.2.0 ⚠), gateway</span></div>
+      </div></section>
+      <section><h3 class="sec">Called by <span>3 call sites</span></h3><div class="list">
+        <div class="row"><span class="verb GET">GET</span><span class="route">/api/orders/{id}</span><span class="detail">billing · <code>InvoiceBuilder.BuildAsync</code> <span class="pill medium">medium</span></span></div>
+        <div class="row"><span class="verb GET">GET</span><span class="route">/api/orders</span><span class="detail">gateway · <code>OrdersProxy.List</code> <span class="pill medium">medium</span></span></div>
+        <div class="row"><span class="verb POST">POST</span><span class="route">/api/orders</span><span class="detail">gateway · <code>OrdersProxy.Create</code> <span class="pill medium">medium</span></span></div>
+      </div></section>
+      <section><h3 class="sec">Depends on</h3><div class="list">
+        <div class="row compact"><span class="route">billing</span><span class="pill">Billing.Client</span></div>
+        <div class="row compact"><span class="route">customers</span><span class="pill">Customers.Client</span><span class="detail">referenced, never called</span></div>
+        <div class="row compact"><span class="route">shared</span><span class="pill">Shared.Kernel</span></div>
+      </div></section>
+    </div></aside>
+  </div>
+</section>
+
+<!-- ================================================================ C -->
+<section class="mock app" id="m-c">
+  <div class="caption"><strong>C. Endpoint drill-down</strong>, opened by double-clicking an endpoint. The map shows the chain from call sites to client methods to the endpoint, with one column per step. The right panel shows the contract as an expandable model tree. Types from another repo are tagged ↗ and jump there when you click them.</div>
+  <header class="bar">
+    <div class="brand"><h1>depenk</h1></div>
+    <div class="crumbs">System <span>/</span> orders <span>/</span> Orders.Api <span>/</span> <b>GET /api/orders/{id}</b></div>
+    <div class="search">⌕ Find anything… <kbd>Ctrl K</kbd></div>
+  </header>
+  <div class="main two">
+    <div class="stage"><svg class="map" id="map-c"></svg>
+      <div class="floating"><span class="chip">← Back to orders</span><span class="chip on">Callers</span><span class="chip">Models</span></div>
+      <div class="zoom"><span>+</span><span>−</span><span>⤢</span></div>
+    </div>
+    <aside class="rail"><div class="pad">
+      <div><div style="display:flex;gap:8px;align-items:center"><span class="verb GET">GET</span><h2 style="font-size:20px">/api/orders/{id}</h2></div>
+        <div class="subline"><code class="mono">OrdersController.Get</code> · orders/src/Orders.Api/OrdersController.cs:14</div></div>
+      <div class="tabs"><span class="on">Contract</span><span>Callers <b class="mono">1</b></span><span>Source</span></div>
+      <section><h3 class="sec">Parameters</h3><div class="list">
+        <div class="row compact"><span class="route">id <span class="t" style="color:var(--ink-3)">: Guid</span></span><span class="pill">route</span></div>
+      </div></section>
+      <section><h3 class="sec">Returns <span>200</span></h3>
+        <div class="tree">
+          <div>▾ <b>OrderDto</b> <span class="t">class · Orders.Client</span></div>
+          <div class="i1">Id <span class="t">: Guid</span></div>
+          <div class="i1">Status <span class="t">: OrderStatus</span> <span class="t">enum</span></div>
+          <div class="i1">▸ Customer <span class="t">: CustomerDto?</span> <span class="pill xrepo">↗ customers</span></div>
+          <div class="i1">▾ Lines <span class="t">: List&lt;OrderLineDto&gt;</span></div>
+          <div class="i2">Sku <span class="t">: string</span></div>
+          <div class="i2">Qty <span class="t">: int</span></div>
+          <div class="i2">▸ UnitPrice <span class="t">: Money</span> <span class="pill xrepo">↗ shared</span></div>
+        </div>
+      </section>
+      <section><h3 class="sec">How to call</h3><div class="list">
+        <div class="row compact"><span class="route">IOrdersClient.GetOrderAsync</span><span></span><span class="detail"><span class="pill">Orders.Client 3.4.1</span> preferred: interface · also <code>OrdersClient.GetOrderAsync</code></span></div>
+      </div></section>
+    </div></aside>
+  </div>
+</section>
+
+<!-- ================================================================ D -->
+<section class="mock app" id="m-d">
+  <div class="caption"><strong>D. Impact view: "what breaks if I change this?"</strong> This answers <code>impact_of_change</code> visually. The target is pinned at the top, affected repos and edges turn red, and everything else fades. The right panel lists every affected call site and how confident depenk is in each link.</div>
+  <header class="bar">
+    <div class="brand"><h1>depenk</h1></div>
+    <div class="target"><span>Impact of</span> OrderDto.Lines <span>✕</span></div>
+    <div class="stats"><span class="stat bad"><b>3</b>repos affected</span><span class="stat bad"><b>3</b>call sites</span></div>
+    <div class="search">⌕ Find anything… <kbd>Ctrl K</kbd></div>
+  </header>
+  <div class="main two">
+    <div class="stage"><svg class="map" id="map-d"></svg>
+      <div class="floating"><span class="chip on">Field · OrderDto.Lines</span><span class="chip">Model</span><span class="chip">Package</span><span class="chip">Endpoint</span></div>
+      <div class="zoom"><span>+</span><span>−</span><span>⤢</span></div>
+    </div>
+    <aside class="rail"><div class="pad">
+      <div><h2>Changing OrderDto.Lines affects 2 other repos</h2>
+        <p class="summary">The field is returned by <strong>3 endpoints</strong> in orders, and sent by 1. Those endpoints are reached from <strong>billing</strong> and <strong>gateway</strong> through Orders.Client.</p></div>
+      <div class="kpis"><div class="kpi bad"><small>Repos</small><span class="big">3</span></div><div class="kpi bad"><small>Endpoints</small><span class="big">3</span></div><div class="kpi bad"><small>Call sites</small><span class="big">3</span></div></div>
+      <section><h3 class="sec">Field path</h3><div class="tree">
+        <div>OrderDto <span class="t">Orders.Client</span></div><div class="i1"><span class="chg">Lines : List&lt;OrderLineDto&gt;</span></div>
+        <div class="i2 t">also in CreateOrderRequest.Lines</div>
+      </div></section>
+      <section><h3 class="sec">Affected call sites <span>3</span></h3><div class="list">
+        <div class="row bad"><span class="verb GET">GET</span><span class="route">billing · InvoiceBuilder.BuildAsync:10</span><span class="detail">→ <code>IOrdersClient.GetOrderAsync</code> → /api/orders/{id} <span class="pill medium">medium</span></span></div>
+        <div class="row bad"><span class="verb GET">GET</span><span class="route">gateway · OrdersProxy.List:9</span><span class="detail">→ <code>IOrdersClient.ListAsync</code> → /api/orders <span class="pill medium">medium</span></span></div>
+        <div class="row bad"><span class="verb POST">POST</span><span class="route">gateway · OrdersProxy.Create:10</span><span class="detail">→ <code>IOrdersClient.CreateAsync</code> → /api/orders <span class="pill medium">medium</span></span></div>
+      </div></section>
+      <section><h3 class="sec">Not affected</h3><div class="subline">customers, shared: they define models nested in OrderDto, but don't consume it.</div></section>
+    </div></aside>
+  </div>
+</section>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const el = (tag, attrs, parent) => { const e = document.createElementNS(NS, tag); for (const [k, v] of Object.entries(attrs || {})) e.setAttribute(k, v); parent?.appendChild(e); return e; };
+  const txt = (parent, attrs, s) => { const t = el('text', attrs, parent); t.textContent = s; return t; };
+
+  function anchor(n, tx, ty) {
+    const cx = n.x + n.w / 2, cy = n.y + n.h / 2, dx = tx - cx, dy = ty - cy;
+    const s = Math.min((n.w / 2 + 4) / Math.abs(dx || 1e-9), (n.h / 2 + 4) / Math.abs(dy || 1e-9));
+    return [cx + dx * s, cy + dy * s];
+  }
+
+  function draw(svgId, { nodes, edges, groups = [] }) {
+    const svg = document.getElementById(svgId);
+    const defs = el('defs', {}, svg);
+    for (const [id, color] of [['a', 'var(--ink-3)'], ['w', 'var(--warn)'], ['h', 'var(--bad)'], ['c', 'var(--accent)']]) {
+      const m = el('marker', { id: svgId + '-' + id, viewBox: '0 0 10 10', refX: 9, refY: 5, markerWidth: 7, markerHeight: 7, orient: 'auto-start-reverse' }, defs);
+      el('path', { d: 'M0 0 10 5 0 10z', style: 'fill:' + color }, m);
+    }
+    const pat = el('pattern', { id: svgId + '-dots', width: 22, height: 22, patternUnits: 'userSpaceOnUse' }, defs);
+    el('circle', { cx: 1, cy: 1, r: 1.1, style: 'fill:var(--grid)' }, pat);
+    el('rect', { x: -5000, y: -5000, width: 10000, height: 10000, fill: `url(#${svgId}-dots)` }, svg);
+    const vp = el('g', {}, svg);
+    const byId = new Map(nodes.map(n => [n.id, n]));
+
+    for (const g of groups) {
+      const gg = el('g', { class: 'group' }, vp);
+      el('rect', { x: g.x, y: g.y, width: g.w, height: g.h, rx: 14 }, gg);
+      el('rect', { x: g.x + 14, y: g.y + 12, width: 10, height: 10, rx: 3, style: `fill:${g.color};stroke:none` }, gg);
+      txt(gg, { x: g.x + 30, y: g.y + 21 }, g.title);
+    }
+
+    const pairs = new Set(edges.map(e => e.from + '>' + e.to));
+    for (const e of edges) {
+      const a = byId.get(e.from), b = byId.get(e.to);
+      const g = el('g', { class: 'edge ' + (e.cls || '') }, vp);
+      const [x1, y1] = anchor(a, b.x + b.w / 2, b.y + b.h / 2), [x2, y2] = anchor(b, a.x + a.w / 2, a.y + a.h / 2);
+      const len = Math.hypot(x2 - x1, y2 - y1) || 1, mx = (x1 + x2) / 2, my = (y1 + y2) / 2;
+      const paired = pairs.has(e.to + '>' + e.from);
+      const bend = paired ? 46 : (e.bend ?? Math.min(len * .1, 22));
+      const cx = mx - (y2 - y1) / len * bend, cy = my + (x2 - x1) / len * bend;
+      const mk = (e.cls || '').includes('hot') ? 'h' : (e.cls || '').includes('warn') ? 'w' : (e.cls || '').includes('accent') ? 'c' : 'a';
+      el('path', { class: 'line', d: `M${x1},${y1} Q${cx},${cy} ${x2},${y2}`, 'stroke-width': e.width || 2, 'marker-end': `url(#${svgId}-${mk})` }, g);
+      if (e.label) {
+        // a two-way pair puts each label near its own source so the two never collide
+        const t = paired ? .3 : .5, q = (a0, c0, b0) => (1 - t) ** 2 * a0 + 2 * t * (1 - t) * c0 + t * t * b0;
+        const lg = el('g', { class: 'label', transform: `translate(${q(x1, cx, x2)},${q(y1, cy, y2)})` }, g);
+        const lw = e.label.length * 6.6 + 14;
+        el('rect', { x: -lw / 2, y: -10, width: lw, height: 20, rx: 10 }, lg);
+        txt(lg, { 'text-anchor': 'middle', y: 4 }, e.label);
+      }
+    }
+
+    for (const n of nodes) {
+      const g = el('g', { class: `node ${n.kind || ''} ${n.cls || ''}`, transform: `translate(${n.x},${n.y})` }, vp);
+      el('rect', { class: 'box', width: n.w, height: n.h, rx: 10 }, g);
+      if (n.color) el('rect', { x: 0, y: 12, width: 4, height: n.h - 24, rx: 2, style: `fill:${n.color}` }, g);
+      let y = n.verb ? 24 : 27;
+      if (n.tag) { txt(g, { class: 'tag', x: 16, y: 18 }, n.tag); y += 8; }
+      if (n.verb) {
+        const vb = el('g', { transform: `translate(16, ${y - 13})` }, g);
+        el('rect', { class: 'verbbox', width: 44, height: 18, style: `fill:var(--m-${n.verb.toLowerCase()})` }, vb);
+        txt(vb, { x: 22, y: 13, 'text-anchor': 'middle', style: 'font:600 10.5px var(--font-mono);fill:var(--surface)' }, n.verb);
+        txt(g, { class: 'sub', x: 68, y }, n.title);
+      } else txt(g, { class: 'name', x: 16, y }, n.title);
+      if (n.meta) txt(g, { class: 'meta', x: 16, y: y + 20 }, n.meta);
+      if (n.badge) {
+        const bg = el('g', { class: 'badge ' + n.badge.cls, transform: `translate(${n.w - n.badge.w + 8}, -9)` }, g);
+        el('rect', { width: n.badge.w, height: 18 }, bg);
+        txt(bg, { x: n.badge.w / 2, y: 13, 'text-anchor': 'middle' }, n.badge.text);
+      }
+    }
+
+    const xs = nodes.flatMap(n => [n.x, n.x + n.w]).concat(groups.flatMap(g => [g.x, g.x + g.w]));
+    const ys = nodes.flatMap(n => [n.y - 12, n.y + n.h]).concat(groups.flatMap(g => [g.y, g.y + g.h]));
+    const minX = Math.min(...xs) - 50, minY = Math.min(...ys) - 50, w = Math.max(...xs) - minX + 50, h = Math.max(...ys) - minY + 70;
+    svg.setAttribute('viewBox', `${minX} ${minY} ${w} ${h}`);
+    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
+  }
+
+  const R = (r) => `var(--r-${r})`;
+  const W = 210, H = 66;
+
+  // ---------- A: repo map
+  // gateway → orders ⇄ billing in the middle column, providers on the right: no edge crosses a box
+  const repoMap = (over = {}) => ({
+    nodes: [
+      { id: 'gateway', x: 0, y: -60, w: W, h: H, title: 'gateway', meta: '1 project · 0 in · 2 out', color: R('gateway') },
+      { id: 'orders', x: 340, y: -200, w: W, h: H, title: 'orders', meta: '3 projects · 4 in · 1 out', color: R('orders'), cls: 'selected', badge: { cls: 'warn', text: '1 ⚠', w: 38 } },
+      { id: 'billing', x: 340, y: 90, w: W, h: H, title: 'billing', meta: '2 projects · 1 in · 2 out', color: R('billing'), badge: { cls: 'warn', text: '2 ⚠', w: 38 } },
+      { id: 'shared', x: 700, y: -260, w: W, h: H, title: 'shared', meta: '1 library · Shared.Kernel', color: R('shared') },
+      { id: 'customers', x: 700, y: -20, w: W, h: H, title: 'customers', meta: '2 projects · 2 in · 0 out', color: R('customers'), badge: { cls: 'warn', text: '1 ⚠', w: 38 } },
+    ].map(n => ({ ...n, ...(over[n.id] || {}) })),
+    edges: [
+      { from: 'gateway', to: 'orders', label: 'Orders.Client · 2', width: 3 },
+      { from: 'billing', to: 'orders', label: 'Orders.Client · 1', cls: 'warn', width: 2.4 },
+      { from: 'orders', to: 'billing', label: 'Billing.Client · 1', cls: 'warn', width: 2.4 },
+      { from: 'billing', to: 'customers', label: 'Customers.Client · 1', width: 2.4 },
+      { from: 'orders', to: 'customers', label: 'Customers.Client · 0', cls: 'low', width: 1.6 },
+      { from: 'orders', to: 'shared', label: 'Shared.Kernel', cls: 'low', width: 1.6 },
+    ].map(e => ({ ...e, ...(over[e.from + '>' + e.to] || {}) })),
+  });
+  draw('map-a', repoMap());
+
+  // ---------- B: project depth
+  const P = 190, PH = 56;
+  draw('map-b', {
+    // consumers on the left, providers on the right; within a repo the client package sits on the side its callers are
+    groups: [
+      { x: -20, y: -330, w: 230, h: 120, title: 'gateway', color: R('gateway') },
+      { x: 340, y: 20, w: 230, h: 210, title: 'billing', color: R('billing') },
+      { x: 340, y: -330, w: 230, h: 300, title: 'orders', color: R('orders') },
+      { x: 700, y: -330, w: 230, h: 210, title: 'customers', color: R('customers') },
+      { x: 700, y: -60, w: 230, h: 120, title: 'shared', color: R('shared') },
+    ],
+    nodes: [
+      { id: 'gw', x: 0, y: -295, w: P, h: PH, kind: 'proj', tag: 'API', title: 'Gateway.Api' },
+      { id: 'bcl', x: 360, y: 55, w: P, h: PH, kind: 'proj', tag: 'CLIENT · NUGET', title: 'Billing.Client' },
+      { id: 'bapi', x: 360, y: 150, w: P, h: PH, kind: 'proj', tag: 'API', title: 'Billing.Api', badge: { cls: 'warn', text: 'drift', w: 44 } },
+      { id: 'ocl', x: 360, y: -295, w: P, h: PH, kind: 'proj', tag: 'CLIENT · NUGET 3.4.1', title: 'Orders.Client', cls: 'selected' },
+      { id: 'otest', x: 360, y: -200, w: P, h: PH, kind: 'proj', tag: 'TEST', title: 'Orders.Tests' },
+      { id: 'oapi', x: 360, y: -105, w: P, h: PH, kind: 'proj', tag: 'API', title: 'Orders.Api', cls: 'selected' },
+      { id: 'ccl', x: 720, y: -200, w: P, h: PH, kind: 'proj', tag: 'CLIENT · NUGET', title: 'Customers.Client' },
+      { id: 'capi', x: 720, y: -295, w: P, h: PH, kind: 'proj', tag: 'API', title: 'Customers.Api' },
+      { id: 'sk', x: 720, y: -25, w: P, h: PH, kind: 'proj', tag: 'LIBRARY', title: 'Shared.Kernel' },
+    ],
+    edges: [
+      { from: 'gw', to: 'ocl', label: '2 calls', cls: 'accent', width: 2.6 },
+      { from: 'bapi', to: 'ocl', label: '3.2.0 · 1 call', cls: 'warn', width: 2.2, bend: -300 },
+      { from: 'oapi', to: 'bcl', label: '1 call', cls: 'warn', width: 2.2 },
+      { from: 'bapi', to: 'ccl', label: '1 call', width: 2.2, bend: 20 },
+      { from: 'oapi', to: 'ccl', cls: 'low', width: 1.6 },
+      { from: 'ocl', to: 'sk', cls: 'low', width: 1.6, bend: -40 },
+      { from: 'otest', to: 'oapi', cls: 'low', width: 1.2 },
+    ],
+  });
+
+  // ---------- C: endpoint chain
+  const CW = 250, CH = 62;
+  draw('map-c', {
+    nodes: [
+      { id: 'cs1', x: 0, y: -100, w: CW, h: CH, tag: 'CALL SITE · billing', title: 'InvoiceBuilder.BuildAsync', meta: 'Billing.Api · line 10', color: R('billing') },
+      { id: 'cs2', x: 0, y: 40, w: CW, h: CH, tag: 'CALL SITE · —', title: 'no other callers', meta: 'OrdersClient.GetOrderAsync is unused', cls: 'dim' },
+      { id: 'cm1', x: 330, y: -100, w: CW, h: CH, tag: 'CLIENT METHOD · Orders.Client', title: 'IOrdersClient.GetOrderAsync', meta: 'Refit interface', color: R('orders') },
+      { id: 'cm2', x: 330, y: 40, w: CW, h: CH, tag: 'CLIENT METHOD · Orders.Client', title: 'OrdersClient.GetOrderAsync', meta: 'hand-written HttpClient', color: R('orders') },
+      { id: 'ep', x: 660, y: -30, w: CW + 20, h: CH + 6, verb: 'GET', title: '/api/orders/{id}', meta: 'OrdersController.Get → OrderDto', color: R('orders'), cls: 'selected' },
+    ],
+    edges: [
+      { from: 'cs1', to: 'cm1', label: 'medium', width: 2.2, cls: 'low' },
+      { from: 'cm1', to: 'ep', label: 'high', width: 2.6, cls: 'accent' },
+      { from: 'cm2', to: 'ep', label: 'high', width: 2.6, cls: 'accent' },
+    ],
+  });
+
+  // ---------- D: impact
+  draw('map-d', repoMap({
+    gateway: { meta: '2 call sites affected', cls: 'hit', badge: { cls: 'bad', text: '2', w: 26 } },
+    billing: { meta: '1 call site affected', cls: 'hit', badge: { cls: 'bad', text: '1', w: 26 } },
+    orders: { meta: 'defines OrderDto.Lines', cls: 'src', badge: null },
+    customers: { meta: 'not affected', cls: 'dim', badge: null },
+    shared: { meta: 'not affected', cls: 'dim' },
+    'gateway>orders': { label: 'List · Create', cls: 'hot' },
+    'billing>orders': { label: 'GetOrderAsync', cls: 'hot' },
+    'orders>billing': { label: null, cls: 'dim' },
+    'billing>customers': { label: null, cls: 'dim' },
+    'orders>customers': { label: null, cls: 'dim low' },
+    'orders>shared': { label: null, cls: 'dim low' },
+  }));
+
+  // ---------- switcher
+  for (const b of document.querySelectorAll('[data-tab]')) b.addEventListener('click', () => {
+    for (const x of document.querySelectorAll('[data-tab]')) x.classList.toggle('on', x === b);
+    for (const m of document.querySelectorAll('.mock')) m.classList.toggle('on', m.id === 'm-' + b.dataset.tab);
+  });
+  document.getElementById('theme').addEventListener('click', () => {
+    const r = document.documentElement;
+    r.dataset.theme = r.dataset.theme === 'dark' ? 'light' : 'dark';
+  });
+  if (!window.toggleSelect) window.toggleSelect = (b) => b.classList.toggle('selected');
+})();
+</script>
+</body></html>
