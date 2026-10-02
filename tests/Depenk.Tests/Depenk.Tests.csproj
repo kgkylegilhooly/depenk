@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Depenk.Analysis\Depenk.Analysis.csproj" />
     <ProjectReference Include="..\..\src\Depenk.Query\Depenk.Query.csproj" />
     <ProjectReference Include="..\..\src\Depenk.Mcp\Depenk.Mcp.csproj" />
+    <ProjectReference Include="..\..\src\depenk\depenk.csproj" ReferenceOutputAssembly="false" />
   </ItemGroup>
 
 </Project>
