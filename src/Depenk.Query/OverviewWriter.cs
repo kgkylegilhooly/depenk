@@ -34,9 +34,11 @@ public static class OverviewWriter
         foreach (var r in repos.Repos.Where(r => r.DependedOnBy.Count > 0)
                      .OrderByDescending(r => r.DependedOnBy.Count).ThenBy(r => r.Name, StringComparer.Ordinal).Take(5))
             sb.AppendLine($"- Repo **{r.Name}** is depended on by {r.DependedOnBy.Count} repo(s)");
-        foreach (var e in q.FindEndpoints(null, limit: QueryService.MaxLimit).Items.Where(e => e.Callers > 0)
-                     .OrderByDescending(e => e.Callers).ThenBy(e => e.Id, StringComparer.Ordinal).Take(5))
-            sb.AppendLine($"- Endpoint **{e.Verb} {e.Route}** ({e.Repo}) is targeted by {e.Callers} client method(s)");
+        foreach (var (e, callers) in g.Endpoints
+                     .Select(e => (E: e, Callers: q.Index.DependentsOf(e.Id).Count(h => h.Kind == EdgeKind.Targets)))
+                     .Where(x => x.Callers > 0)
+                     .OrderByDescending(x => x.Callers).ThenBy(x => x.E.Id, StringComparer.Ordinal).Take(5))
+            sb.AppendLine($"- Endpoint **{e.Verb} {e.Route}** ({e.Repo}) is targeted by {callers} client method(s)");
         sb.AppendLine();
 
         sb.AppendLine("## Diagnostics").AppendLine();

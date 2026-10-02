@@ -50,7 +50,8 @@ public sealed record TraceResult(string Root, string Direction, List<TraceStep> 
 public sealed record Affected(string Id, string Label, string Repo, Confidence Confidence);
 public sealed record ImpactResult(string Target, string TargetKind, string? Field, List<Affected> Repos,
     List<Affected> Projects, List<Affected> Endpoints, List<Affected> ClientMethods, List<Affected> CallSites,
-    List<Affected> Models);
+    List<Affected> Models, ImpactTotals Totals, bool Truncated) : ITruncatable;
+public sealed record ImpactTotals(int Repos, int Projects, int Endpoints, int ClientMethods, int CallSites, int Models);
 
 // how_to_call (Task 3)
 public sealed record CallOption(string PackageId, string? LatestVersion, string ProducerProjectId, string Type,

@@ -14,22 +14,21 @@ public sealed partial class QueryService
         var targets = Relax(id, h => h.Kind == EdgeKind.FieldOf);
         var usages = targets
             .SelectMany(t => Index.DependentsOf(t.Key)
-                .Where(h => h.Kind is EdgeKind.Accepts or EdgeKind.Returns)
+                .Where(h => h.Kind is EdgeKind.Accepts or EdgeKind.Returns && Index.Endpoints.ContainsKey(h.From))
                 .Select(h => new UsageRef(h.From, h.Kind == EdgeKind.Accepts ? "accepts" : "returns", t.Key,
                     Min(t.Value, h.Confidence), Index.Endpoints[h.From].Repo)))
             .DistinctBy(u => (u.EndpointId, u.Relation, u.Via))
             .OrderBy(u => u.EndpointId, StringComparer.Ordinal).ThenBy(u => u.Via, StringComparer.Ordinal).ToList();
         var repos = usages.Select(u => u.Repo)
             .Concat(usages.SelectMany(u => CallerRepos(u.EndpointId)))
-            .Distinct().Select(r => $"repo:{r}").Order(StringComparer.Ordinal).ToList();
+            .Where(r => !string.IsNullOrEmpty(r)).Distinct().Select(r => $"repo:{r}").Order(StringComparer.Ordinal).ToList();
         return new ModelUsages(id, usages,
             targets.Keys.Where(k => k != id).Order(StringComparer.Ordinal).ToList(), repos);
     }
 
     public TraceResult Trace(string node, string direction = "down", int depth = 3, int? limit = null)
     {
-        var root = Index.ResolveAny(node);
-        var dir = direction.ToLowerInvariant();
+        var dir = (direction ?? "").ToLowerInvariant();
         string[] dirs = dir switch
         {
             "down" => ["down"],
@@ -38,6 +37,7 @@ public sealed partial class QueryService
             _ => throw new QueryException(QueryException.InvalidArgument,
                 $"direction must be up, down or both (got '{direction}')", "Use direction: \"down\" for dependencies, \"up\" for dependents."),
         };
+        var root = Index.ResolveAny(node);
         var maxDepth = Math.Clamp(depth, 1, 10);
         var steps = new List<TraceStep>();
         foreach (var d in dirs)
@@ -62,7 +62,7 @@ public sealed partial class QueryService
         return new TraceResult(root, dir, steps.Take(cap).ToList(), steps.Count > cap);
     }
 
-    public ImpactResult ImpactOfChange(string target)
+    public ImpactResult ImpactOfChange(string target, int? limit = null)
     {
         string start;
         string? field = null;
@@ -88,20 +88,26 @@ public sealed partial class QueryService
         }
         foreach (var (id, c) in best)
         {
-            var n = Index.Get(id);
+            if (!Index.TryGet(id, out var n)) continue;
             var projectId = ProjectIdOf(id);
             if (projectId is not null && projectId != start) Bump(projectId, c);
             if (!string.IsNullOrEmpty(n.Repo) && $"repo:{n.Repo}" != start) Bump($"repo:{n.Repo}", c);
         }
 
         List<Affected> Of(NodeKind kind) => rolled
-            .Where(kv => Index.TryGet(kv.Key, out var n) && n.Kind == kind)
-            .Select(kv => { var n = Index.Get(kv.Key); return new Affected(n.Id, n.Label, n.Repo ?? "", kv.Value); })
+            .Select(kv => Index.TryGet(kv.Key, out var n) && n.Kind == kind
+                ? new Affected(n.Id, n.Label, n.Repo ?? "", kv.Value) : null)
+            .OfType<Affected>()
             .OrderBy(a => a.Id, StringComparer.Ordinal).ToList();
 
         var kindName = field is not null ? "field" : JsonName(Index.Get(start).Kind);
-        return new ImpactResult(start, kindName, field, Of(NodeKind.Repo), Of(NodeKind.Project), Of(NodeKind.Endpoint),
-            Of(NodeKind.ClientMethod), Of(NodeKind.CallSite), Of(NodeKind.Model));
+        var all = new[] { Of(NodeKind.Repo), Of(NodeKind.Project), Of(NodeKind.Endpoint),
+            Of(NodeKind.ClientMethod), Of(NodeKind.CallSite), Of(NodeKind.Model) };
+        var cap = Cap(limit);
+        var cut = all.Select(l => l.Take(cap).ToList()).ToArray();
+        return new ImpactResult(start, kindName, field, cut[0], cut[1], cut[2], cut[3], cut[4], cut[5],
+            new ImpactTotals(all[0].Count, all[1].Count, all[2].Count, all[3].Count, all[4].Count, all[5].Count),
+            all.Any(l => l.Count > cap));
     }
 
     public HowToCallResult HowToCall(string endpoint)
@@ -110,9 +116,12 @@ public sealed partial class QueryService
         var deps = Index.DependenciesOf(ep.Id);
         var request = deps.Where(h => h.Kind == EdgeKind.Accepts).Select(h => ToModelRef(h.To, h.Confidence, h.Edge.Source)).ToList();
         var response = Responses(ep, deps);
-        var options = Index.DependentsOf(ep.Id).Where(h => h.Kind == EdgeKind.Targets)
+        var produces = Graph.EdgesOf(EdgeKind.Produces)
+            .GroupBy(e => e.From, StringComparer.Ordinal)
+            .ToDictionary(g => g.Key, g => g.OrderBy(e => e.To, StringComparer.Ordinal).First(), StringComparer.Ordinal);
+        var options = Index.DependentsOf(ep.Id).Where(h => h.Kind == EdgeKind.Targets && Index.ClientMethods.ContainsKey(h.From))
             .Select(h => (Cm: Index.ClientMethods[h.From], Hop: h))
-            .Select(x => (x.Cm, x.Hop, Produces: Graph.EdgesOf(EdgeKind.Produces).FirstOrDefault(e => e.From == x.Cm.ProjectId)))
+            .Select(x => (x.Cm, x.Hop, Produces: produces.GetValueOrDefault(x.Cm.ProjectId)))
             .Where(x => x.Produces is not null && Index.Packages.ContainsKey(x.Produces.To))
             .Select(x => new CallOption(Index.Packages[x.Produces!.To].PackageId, x.Produces.Version, x.Cm.ProjectId,
                 x.Cm.TypeName, x.Cm.MethodName, x.Cm.Signature, x.Hop.Confidence, request, response))
@@ -136,6 +145,7 @@ public sealed partial class QueryService
         {
             foreach (var h in Index.DependentsOf(cur).Where(follow))
             {
+                if (!Index.TryGet(h.From, out _)) continue;
                 var c = Min(best[cur], h.Confidence);
                 if (best.TryGetValue(h.From, out var old) && c <= old) continue;
                 best[h.From] = c;
@@ -149,7 +159,7 @@ public sealed partial class QueryService
     {
         var m = Index.Models[id];
         path.Add(id);
-        var childHops = Index.DependenciesOf(id).Where(h => h.Kind == EdgeKind.FieldOf).ToList();
+        var childHops = Index.DependenciesOf(id).Where(h => h.Kind == EdgeKind.FieldOf && Index.Models.ContainsKey(h.To)).ToList();
         var fields = m.Fields.Select(f =>
         {
             var hops = childHops.Where(h => h.Edge.FieldName == f.Name).ToList();
@@ -172,7 +182,7 @@ public sealed partial class QueryService
     private IEnumerable<string> CallerRepos(string endpointId) =>
         Index.DependentsOf(endpointId).Where(h => h.Kind == EdgeKind.Targets)
             .SelectMany(h => Index.DependentsOf(h.From).Where(x => x.Kind == EdgeKind.Invokes))
-            .Select(h => Index.CallSites[h.From].Repo);
+            .Select(h => Index.CallSites.TryGetValue(h.From, out var cs) ? cs.Repo : "");
 
     private string? ProjectIdOf(string id) =>
         Index.Endpoints.GetValueOrDefault(id)?.ProjectId
