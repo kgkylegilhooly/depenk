@@ -24,6 +24,7 @@
     <ProjectReference Include="..\..\src\Depenk.Core\Depenk.Core.csproj" />
     <ProjectReference Include="..\..\src\Depenk.Scanning\Depenk.Scanning.csproj" />
     <ProjectReference Include="..\..\src\Depenk.Analysis\Depenk.Analysis.csproj" />
+    <ProjectReference Include="..\..\src\Depenk.Query\Depenk.Query.csproj" />
   </ItemGroup>
 
 </Project>

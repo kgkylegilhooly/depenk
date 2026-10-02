@@ -1,0 +1,7 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\Depenk.Core\Depenk.Core.csproj" />
+  </ItemGroup>
+
+</Project>
