@@ -93,6 +93,7 @@ Without installing: `dotnet run --project src/depenk -- scan --workspace <dir>`.
 Optional — place it in the workspace root. Everything has sensible defaults.
 
 ```yaml
+# yaml-language-server: $schema=https://raw.githubusercontent.com/kgkylegilhooly/depenk/master/schemas/depenk.schema.json
 repos:
   paths: []                 # explicit repo folders; when set, child-folder discovery is skipped
   include: ["*"]
@@ -116,6 +117,8 @@ routes:
   prefixes:                 # base path a client prepends that isn't visible in code
     Orders.Client: /api
 ```
+
+Editors with the YAML language server (VS Code's Red Hat YAML extension, JetBrains IDEs) will autocomplete and validate `depenk.yml` from that line.
 
 ## Output
 

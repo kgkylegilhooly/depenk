@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/kgkylegilhooly/depenk/master/schemas/depenk.schema.json",
+  "title": "depenk.yml",
+  "description": "Optional configuration for depenk, placed in the workspace root (the folder containing your repo clones).",
+  "type": "object",
+  "additionalProperties": false,
+  "properties": {
+    "repos": {
+      "description": "Which folders are scanned as repos.",
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paths": { "description": "Explicit repo folders (relative to the workspace or absolute). When set, child-folder discovery is skipped.", "type": "array", "items": { "type": "string" } },
+        "include": { "description": "Glob patterns on repo names to include (default [\"*\"]).", "type": "array", "items": { "type": "string" } },
+        "exclude": { "description": "Glob patterns on repo names to exclude.", "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "projects": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kindOverrides": {
+          "description": "Force a project's kind when the heuristics are wrong.",
+          "type": "object",
+          "additionalProperties": { "enum": ["Api", "Client", "Library", "Test", "Other", "api", "client", "library", "test", "other"] }
+        },
+        "ignore": { "description": "Glob patterns on project names to skip entirely.", "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "packages": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "producers": {
+          "description": "PackageId → repo name that produces it, to settle ambiguous producers.",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    },
+    "httpWrappers": {
+      "description": "Teach depenk your in-house HTTP wrapper so its calls are linked with high confidence.",
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "methods"],
+        "properties": {
+          "type": { "description": "Glob on the wrapper's declared type name, e.g. \"*.IApiHttpClient\".", "type": "string" },
+          "methods": {
+            "description": "Method-name glob → HTTP verb.",
+            "type": "object",
+            "additionalProperties": { "enum": ["GET", "POST", "PUT", "DELETE", "PATCH", "HEAD", "get", "post", "put", "delete", "patch", "head"] }
+          },
+          "routeArgument": { "description": "Zero-based index of the argument holding the route.", "type": "integer", "minimum": 0 }
+        }
+      }
+    },
+    "routes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "prefixes": {
+          "description": "Client project name → route prefix its base address adds (e.g. \"/api\").",
+          "type": "object",
+          "additionalProperties": { "type": "string" }
+        }
+      }
+    }
+  }
+}
